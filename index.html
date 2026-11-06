@@ -1,0 +1,2164 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pocket Playground</title>
+<meta name="description" content="Tiny free browser games. No sign-up, just play.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap" rel="stylesheet">
+<style>
+/* Layout: chunky toy-box cards on a paper ground; each game lives in one bordered "stage". */
+:root{
+  --bg:#f7f1e6; --surface:#fffdf8; --ink:#1f1b16; --muted:#6b6258; --line:#e6dccb;
+  --red:#e5533d; --yellow:#f2b632; --teal:#1a9a91; --blue:#3a6ee8; --pink:#d94f93;
+  --green:#3f9f43; --purple:#7b5cd6; --orange:#e8742a; --sky:#2f9fd6; --lime:#8cb82c;
+  --shadow:#1f1b16; --hole:#3b2f25;
+  --font:"Bricolage Grotesque", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#16140f; --surface:#221f19; --ink:#f3ede2; --muted:#a59c8f; --line:#37312a; --shadow:#000; --hole:#0d0b08; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{ --bg:#16140f; --surface:#221f19; --ink:#f3ede2; --muted:#a59c8f; --line:#37312a; --shadow:#000; --hole:#0d0b08; color-scheme:dark; }
+
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg); color:var(--ink); font-family:var(--font); line-height:1.45; min-height:100vh; -webkit-tap-highlight-color:transparent}
+[hidden]{display:none!important}
+a{color:inherit}
+button{font:inherit; color:inherit}
+:focus-visible{outline:3px solid var(--blue); outline-offset:3px}
+kbd{font:inherit; font-size:12px; border:1.5px solid var(--line); border-bottom-width:3px; border-radius:6px; padding:0 6px}
+.wrap{max-width:1080px; margin:0 auto; padding-left:max(16px, env(safe-area-inset-left, 0px)); padding-right:max(16px, env(safe-area-inset-right, 0px))}
+
+/* header */
+header.top{display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; padding-block:24px 4px}
+.brand{display:flex; align-items:center; gap:12px; text-decoration:none}
+.logo{width:44px; height:44px; border-radius:12px; background:var(--yellow); border:2px solid var(--ink); box-shadow:3px 3px 0 var(--shadow); display:grid; place-items:center; font-size:24px}
+.brand b{font-size:26px; font-weight:800; letter-spacing:-.02em}
+
+.btn{display:inline-flex; align-items:center; justify-content:center; gap:8px; border:2px solid var(--ink); background:var(--surface); border-radius:12px; padding:10px 16px; font-weight:600; cursor:pointer;
+  box-shadow:3px 3px 0 var(--shadow); text-decoration:none; transition:transform .08s, box-shadow .08s; touch-action:manipulation}
+.btn:hover{transform:translate(-1px,-1px); box-shadow:4px 4px 0 var(--shadow)}
+.btn:active{transform:translate(2px,2px); box-shadow:1px 1px 0 var(--shadow)}
+.btn.primary{background:var(--ink); color:var(--bg)}
+.btn.sm{padding:6px 12px; font-size:14px; border-radius:10px; box-shadow:2px 2px 0 var(--shadow)}
+.btn:disabled{opacity:.5; cursor:default; transform:none}
+
+/* home */
+.hero{display:flex; flex-wrap:wrap; align-items:end; justify-content:space-between; gap:16px; margin:24px 0 20px}
+.hero h1{font-size:clamp(30px,5vw,48px); line-height:1.05; margin:0; letter-spacing:-.03em; font-weight:800; max-width:16ch; text-wrap:balance}
+.hero p{margin:8px 0 0; color:var(--muted); font-size:17px}
+.recent{display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin:0 0 16px}
+.recent span{color:var(--muted); font-weight:600; font-size:14px; margin-right:4px}
+.toolbar{display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin:0 0 20px}
+.search{flex:1 1 220px; min-width:0; font:inherit; font-size:16px; padding:9px 14px; border:2px solid var(--ink); border-radius:12px; background:var(--surface); color:var(--ink)}
+.cats{display:flex; flex-wrap:wrap; gap:8px}
+.chip{border:2px solid var(--ink); background:var(--surface); border-radius:999px; padding:5px 12px; font-weight:600; font-size:14px; cursor:pointer}
+.chip small{opacity:.65; font-weight:400; margin-left:2px}
+.chip[aria-pressed="true"]{background:var(--ink); color:var(--bg)}
+
+.grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:20px; padding-bottom:32px}
+.card{position:relative; display:flex; flex-direction:column; text-decoration:none; background:var(--surface); border:2px solid var(--ink); border-radius:18px; overflow:hidden; box-shadow:5px 5px 0 var(--shadow); transition:transform .1s, box-shadow .1s}
+.card:hover{transform:translate(-2px,-2px); box-shadow:7px 7px 0 var(--shadow)}
+.card:active{transform:translate(3px,3px); box-shadow:2px 2px 0 var(--shadow)}
+.art{aspect-ratio:16/10; max-width:100%; background:var(--c); display:grid; place-items:center; border-bottom:2px solid var(--ink); position:relative; overflow:hidden}
+.art span{font-size:60px; filter:drop-shadow(3px 3px 0 rgba(0,0,0,.25)); transition:transform .2s}
+.card:hover .art span{transform:scale(1.12) rotate(-6deg)}
+.art::before{content:""; position:absolute; inset:0; background-image:radial-gradient(rgba(255,255,255,.22) 2px, transparent 2px); background-size:16px 16px}
+.newtag{position:absolute; top:10px; right:10px; z-index:1; background:var(--surface); border:2px solid var(--ink); border-radius:999px; font-size:12px; font-weight:800; padding:1px 9px}
+.info{padding:12px 16px 16px; display:flex; flex-direction:column; gap:3px; flex:1}
+.cattag{font-size:12px; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); font-weight:600}
+.info h2{margin:0; font-size:20px; letter-spacing:-.01em}
+.info p{margin:0; color:var(--muted); font-size:15px; flex:1}
+.pill{align-self:flex-start; margin-top:8px; font-size:13px; font-weight:600; border:1.5px solid var(--line); border-radius:999px; padding:2px 10px; color:var(--muted)}
+.pill.has{border-color:var(--ink); color:var(--ink)}
+.empty-state{grid-column:1/-1; border:2px dashed var(--line); border-radius:18px; padding:32px 16px; text-align:center; color:var(--muted)}
+.empty-state p{margin:0 0 12px}
+.foot-tools{display:flex; flex-wrap:wrap; gap:10px; align-items:center; color:var(--muted); font-size:14px; padding-bottom:16px}
+footer{color:var(--muted); font-size:14px; padding-block:8px 32px}
+
+/* game page */
+.gamehead{display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin:20px 0 8px}
+.gamehead .spacer{flex:1}
+.gtitle{margin:12px 0 4px; font-size:clamp(28px,4vw,38px); letter-spacing:-.02em; text-wrap:balance}
+.howto{color:var(--muted); margin:0 0 16px; font-size:16px; max-width:72ch}
+.seg{display:inline-flex; border:2px solid var(--ink); border-radius:10px; overflow:hidden; box-shadow:2px 2px 0 var(--shadow)}
+.seg button{border:0; background:var(--surface); padding:6px 12px; font-weight:600; font-size:14px; cursor:pointer}
+.seg button+button{border-left:2px solid var(--ink)}
+.seg button[aria-pressed="true"]{background:var(--ink); color:var(--bg)}
+.stage{position:relative; height:500px; background:var(--surface); border:2px solid var(--ink); border-radius:18px; overflow:hidden; box-shadow:5px 5px 0 var(--shadow);
+  margin-bottom:10px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px; padding:16px; user-select:none; -webkit-user-select:none}
+.stage:focus{outline:none}
+.stage.flush{padding:0; gap:0}
+.stage.tight{gap:10px; padding:12px}
+.keys-hint{color:var(--muted); font-size:13px; margin:0 0 16px}
+.pager{display:flex; justify-content:space-between; flex-wrap:wrap; gap:10px; margin-bottom:40px}
+
+.hud{display:flex; flex-wrap:wrap; justify-content:center; gap:6px 22px; font-size:15px; color:var(--muted)}
+.hud b{color:var(--ink); font-size:21px; font-variant-numeric:tabular-nums}
+.hud.float{position:absolute; top:10px; left:16px; right:16px; justify-content:flex-start; z-index:2; pointer-events:none}
+.msg{margin:0; color:var(--muted); min-height:1.5em; text-align:center}
+.float-msg{position:absolute; left:16px; right:16px; bottom:16px; margin:0; text-align:center; color:var(--muted); font-weight:600; pointer-events:none; z-index:2}
+
+/* results */
+.end{position:absolute; inset:0; background:color-mix(in srgb, var(--bg) 84%, transparent); display:grid; place-items:center; z-index:5; animation:fade .2s; padding:16px}
+.endbox{background:var(--surface); border:2px solid var(--ink); border-radius:16px; padding:22px 28px; text-align:center; box-shadow:5px 5px 0 var(--shadow); width:min(100%,340px)}
+.endbox .eyebrow{margin:0; font-weight:600; color:var(--muted)}
+.endbox .eyebrow.new{color:var(--green)}
+.endbox .big{margin:4px 0; font-size:40px; font-weight:800; letter-spacing:-.02em; font-variant-numeric:tabular-nums; overflow-wrap:anywhere}
+.endbox .detail{margin:0 0 6px; color:var(--ink)}
+.endbox .muted{margin:0 0 16px; color:var(--muted)}
+.endbtns{display:flex; gap:10px; justify-content:center; flex-wrap:wrap}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+
+/* shared tile grids: minmax(0,1fr) keeps every cell the same size no matter what it holds */
+.tiles{display:grid; gap:6px; width:min(100%,380px); aspect-ratio:1; max-width:100%; flex:none}
+.tiles > *{min-width:0; min-height:0; overflow:hidden; border:0; border-radius:8px; padding:0; cursor:pointer; touch-action:manipulation; display:grid; place-items:center; line-height:1}
+.shake{animation:shake .3s}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+
+/* reaction */
+.rx{position:absolute; inset:0; border:0; width:100%; height:100%; cursor:pointer; color:#fff; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; padding:16px; text-align:center; touch-action:manipulation}
+.rx strong{font-size:clamp(30px,6vw,52px); letter-spacing:-.02em}
+.rx span{font-size:17px; opacity:.95; max-width:38ch}
+.rx .dots{display:flex; gap:8px; margin-top:6px}
+.rx .dots i{width:14px; height:14px; border-radius:50%; border:2px solid #fff}
+.rx .dots i.on{background:#fff}
+.rx[data-s=idle],.rx[data-s=done],.rx[data-s=set]{background:var(--blue)}
+.rx[data-s=wait]{background:var(--red)}
+.rx[data-s=go]{background:var(--green)}
+.rx[data-s=early]{background:var(--orange)}
+
+/* click frenzy */
+.bigpad{width:220px; height:220px; border-radius:50%; border:3px solid var(--ink); background:var(--pink); color:#fff; font-size:22px; font-weight:800; cursor:pointer; box-shadow:0 8px 0 var(--shadow); touch-action:manipulation}
+.bigpad:active{transform:translateY(6px); box-shadow:0 2px 0 var(--shadow)}
+.bigpad:disabled{opacity:.6; cursor:default}
+
+/* number rush */
+.nums > *{background:var(--bg); border:2px solid var(--ink); font-size:clamp(16px,4vw,24px); font-weight:800; font-variant-numeric:tabular-nums}
+.nums > .empty{border-color:transparent; background:transparent; cursor:default}
+.nums > .done{background:var(--teal); color:#fff; border-color:var(--teal)}
+.nums > .wrong{background:var(--red); color:#fff; border-color:var(--red)}
+
+/* echo pads */
+.pads{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; width:min(100%,320px); aspect-ratio:1}
+.pads button{border:3px solid var(--ink); border-radius:20px; cursor:pointer; opacity:.5; transition:opacity .1s, transform .1s; touch-action:manipulation; font-size:20px; font-weight:800; color:#fff}
+.pads button.lit{opacity:1; transform:scale(1.04)}
+
+/* type sprint */
+.words{position:relative; width:min(100%,680px); font-size:22px; line-height:1.75; padding:10px 14px; border:2px solid var(--line); border-radius:12px; height:142px; overflow:hidden; text-align:left}
+.words .w{display:inline-block; margin-right:.55em; border-radius:4px}
+.words .w.cur{background:color-mix(in srgb, var(--yellow) 35%, transparent)}
+.words .w.ok{color:var(--green)}
+.words .w.bad{color:var(--red); text-decoration:line-through}
+.words .l.ok{color:var(--green)}
+.words .l.bad{color:var(--red); background:color-mix(in srgb, var(--red) 15%, transparent)}
+.words .l.x{color:var(--red); opacity:.8}
+.words .l.caret{box-shadow:-2px 0 0 var(--ink)}
+.words .w.cur.endcaret{box-shadow:2px 0 0 var(--ink)}
+.typein{user-select:text; -webkit-user-select:text; width:min(100%,680px); font:inherit; font-size:20px; padding:10px 14px; border:2px solid var(--ink); border-radius:12px; background:var(--bg); color:var(--ink)}
+
+/* aim / arenas */
+.arena{position:absolute; inset:0; cursor:crosshair; touch-action:manipulation}
+.target{position:absolute; width:var(--s); height:var(--s); margin:calc(var(--s) / -2) 0 0 calc(var(--s) / -2); border-radius:50%; border:3px solid var(--ink); cursor:pointer; padding:0;
+  background:radial-gradient(circle, #fff 0 18%, var(--red) 19% 45%, #fff 46% 62%, var(--red) 63%); animation:pop .12s; touch-action:manipulation}
+@keyframes pop{from{transform:scale(.3)}to{transform:scale(1)}}
+
+/* higher lower */
+.hlcard{width:150px; height:190px; border:3px solid var(--ink); border-radius:18px; background:var(--purple); color:#fff; display:grid; place-items:center; font-size:68px; font-weight:800; box-shadow:5px 5px 0 var(--shadow); font-variant-numeric:tabular-nums}
+.hlrow{display:flex; gap:12px; flex-wrap:wrap; justify-content:center}
+
+/* tile merge */
+.merge{display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); grid-template-rows:repeat(4,minmax(0,1fr)); gap:10px; width:min(100%,410px); aspect-ratio:1; background:var(--line); padding:10px; border-radius:14px; border:2px solid var(--ink); touch-action:none; flex:none}
+.merge div{min-width:0; min-height:0; border-radius:10px; display:grid; place-items:center; font-weight:800; font-size:clamp(20px,6vw,36px); background:var(--bg); font-variant-numeric:tabular-nums}
+.merge div.n{animation:pop .15s}
+.merge div.big{font-size:clamp(16px,4.6vw,28px)}
+
+/* sweeper */
+.mines{gap:3px}
+.mines > *{background:var(--line); border-radius:4px; font-weight:800}
+.mines > .open{background:var(--bg); cursor:default}
+.mines > .boom{background:var(--red)}
+.flagbtn[aria-pressed="true"]{background:var(--yellow); color:#1f1b16}
+
+/* pair up */
+.cards{gap:10px; width:min(100%,360px)}
+.cards > *{border:2px solid var(--ink); border-radius:10px; background:var(--purple); font-size:clamp(24px,7vw,38px)}
+.cards > .up{background:var(--bg)}
+.cards > .got{background:color-mix(in srgb, var(--green) 30%, var(--bg)); cursor:default}
+
+/* bonk */
+.holes{gap:14px; width:min(100%,330px)}
+.holes > *{border-radius:50%; border:3px solid var(--ink); background:var(--hole); font-size:clamp(30px,9vw,46px)}
+.holes > .up{background:var(--yellow); animation:pop .12s}
+.holes > .hit{background:var(--orange)}
+
+/* go / no-go */
+.gng-area{width:200px; height:200px; display:grid; place-items:center}
+.gng{width:170px; height:170px; display:grid; place-items:center; font-size:30px; font-weight:800; color:#fff; border:3px solid transparent}
+.gng.go{background:var(--green); border-color:var(--ink); border-radius:50%; animation:pop .1s}
+.gng.nogo{background:var(--red); border-color:var(--ink); border-radius:18px; animation:pop .1s}
+
+/* lightning tiles */
+.lt > *{background:var(--bg); border:2px solid var(--line); border-radius:12px}
+.lt > .lit{background:var(--sky); border-color:var(--ink); box-shadow:0 0 0 4px color-mix(in srgb, var(--sky) 35%, transparent)}
+.lt > .miss{background:var(--red)}
+
+/* five letters */
+.fl-board{display:grid; grid-template-rows:repeat(6,minmax(0,1fr)); gap:5px; width:min(100%, 260px); flex:none}
+.fl-row{display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:5px}
+.fl-row > div{aspect-ratio:1; border:2px solid var(--line); border-radius:6px; display:grid; place-items:center; font-weight:800; font-size:22px; text-transform:uppercase; min-width:0}
+.fl-row > div.filled{border-color:var(--ink)}
+.fl-row > div.hit{background:var(--green); border-color:var(--green); color:#fff; animation:flip .3s}
+.fl-row > div.near{background:var(--yellow); border-color:var(--yellow); color:#1f1b16; animation:flip .3s}
+.fl-row > div.miss{background:var(--muted); border-color:var(--muted); color:var(--bg); animation:flip .3s}
+@keyframes flip{0%{transform:rotateX(0)}50%{transform:rotateX(90deg)}100%{transform:rotateX(0)}}
+.fl-kb{display:flex; flex-direction:column; gap:6px; width:min(100%,500px)}
+.fl-kb div{display:flex; gap:5px; justify-content:center}
+.fl-kb button{flex:1 1 0; min-width:0; height:40px; border:0; border-radius:6px; background:var(--line); font-weight:700; text-transform:uppercase; cursor:pointer; touch-action:manipulation; padding:0}
+.fl-kb button.wide{flex:1.6 1 0; font-size:13px}
+.fl-kb button.hit{background:var(--green); color:#fff}
+.fl-kb button.near{background:var(--yellow); color:#1f1b16}
+.fl-kb button.miss{background:var(--muted); color:var(--bg)}
+.toast{position:absolute; top:12px; left:50%; transform:translateX(-50%); background:var(--ink); color:var(--bg); padding:6px 14px; border-radius:10px; font-weight:600; z-index:3; pointer-events:none}
+
+/* 2-player */
+.turnline{margin:0; font-weight:700; font-size:18px; min-height:1.5em; text-align:center}
+.ttt{width:min(100%,300px)}
+.ttt > *{background:var(--bg); border:2px solid var(--ink); font-size:clamp(40px,12vw,68px); font-weight:800}
+.ttt > .x{color:var(--blue)}
+.ttt > .o{color:var(--red)}
+.ttt > .win{background:color-mix(in srgb, var(--yellow) 45%, var(--bg))}
+.ttt > :disabled{cursor:default}
+.c4{display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); grid-template-rows:repeat(6,minmax(0,1fr)); gap:6px; padding:8px; background:var(--blue); border:2px solid var(--ink); border-radius:14px; width:min(100%,390px); aspect-ratio:7/6; flex:none}
+.c4 > div{border-radius:50%; background:var(--surface); cursor:pointer; min-width:0; min-height:0}
+.c4 > .p1{background:var(--red)}
+.c4 > .p2{background:var(--yellow)}
+.c4 > .win{box-shadow:inset 0 0 0 4px var(--ink)}
+.c4 > .drop{animation:drop .25s ease-in}
+@keyframes drop{from{transform:translateY(-240%)}to{transform:none}}
+.seg{flex-wrap:wrap}
+
+canvas.cv{display:block; width:100%; touch-action:none; cursor:pointer}
+
+@media (max-width:600px){
+  .stage{height:470px}
+  .bigpad{width:180px; height:180px}
+  .words{font-size:18px; height:122px}
+  .hud{gap:4px 16px}
+  .gng-area{width:170px; height:170px}
+  .gng{width:150px; height:150px}
+}
+@media (prefers-reduced-motion: reduce){
+  *{animation:none!important; transition:none!important}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <a class="brand" href="#games"><span class="logo" aria-hidden="true">🕹️</span><b>Pocket Playground</b></a>
+    <button class="btn sm" id="sound" type="button" aria-pressed="true"></button>
+  </header>
+  <main id="app"></main>
+  <footer>Your best scores are saved in this browser only.</footer>
+</div>
+
+<script>
+'use strict';
+/* =========================================================
+   Helpers
+   ========================================================= */
+const $ = (s, r=document) => r.querySelector(s);
+const $$ = (s, r=document) => [...r.querySelectorAll(s)];
+const rand = n => Math.floor(Math.random()*n);
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const shuffle = a => { for(let i=a.length-1;i>0;i--){ const j=rand(i+1); [a[i],a[j]]=[a[j],a[i]]; } return a; };
+const FONT = '"Bricolage Grotesque", system-ui, -apple-system, "Segoe UI", sans-serif';
+const EMOJI = '"Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif';
+
+/* storage that never throws; falls back to memory if the browser blocks it */
+const mem = new Map();
+const store = {
+  get(k){
+    try{ const v = localStorage.getItem('pp:'+k); if(v != null) return JSON.parse(v); }catch(e){}
+    return mem.has(k) ? mem.get(k) : null;
+  },
+  set(k, v){ mem.set(k, v); try{ localStorage.setItem('pp:'+k, JSON.stringify(v)); }catch(e){} },
+  clearBests(){
+    [...mem.keys()].forEach(k => { if(k.startsWith('best:')) mem.delete(k); });
+    try{
+      const ks = [];
+      for(let i=0;i<localStorage.length;i++){ const k = localStorage.key(i); if(k && k.startsWith('pp:best:')) ks.push(k); }
+      ks.forEach(k => localStorage.removeItem(k));
+    }catch(e){}
+  }
+};
+const prefs = Object.assign({muted:false, modes:{}, recent:[]}, store.get('prefs') || {});
+if(typeof prefs.modes !== 'object' || !prefs.modes) prefs.modes = {};
+if(!Array.isArray(prefs.recent)) prefs.recent = [];
+const savePrefs = () => store.set('prefs', prefs);
+
+let actx;
+function beep(freq, dur=0.15){
+  if(prefs.muted) return;
+  try{
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    if(actx.state === 'suspended') actx.resume();
+    const o = actx.createOscillator(), g = actx.createGain();
+    o.type = 'triangle'; o.frequency.value = freq;
+    g.gain.setValueAtTime(0.1, actx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, actx.currentTime + dur);
+    o.connect(g).connect(actx.destination); o.start(); o.stop(actx.currentTime + dur + 0.02);
+  }catch(e){}
+}
+
+function pal(){
+  const s = getComputedStyle(document.documentElement), o = {};
+  ['bg','surface','ink','muted','line','red','yellow','teal','blue','pink','green','purple','orange','sky','lime'].forEach(k => o[k] = s.getPropertyValue('--'+k).trim());
+  return o;
+}
+function txt(ctx, s, x, y, color, size=20, weight=600, align='center'){
+  ctx.fillStyle = color; ctx.font = `${weight} ${size}px ${FONT}`; ctx.textAlign = align; ctx.textBaseline = 'alphabetic'; ctx.fillText(s, x, y);
+}
+function makeCanvas(el){
+  const c = document.createElement('canvas'); c.className = 'cv'; el.appendChild(c);
+  const ctx = c.getContext('2d');
+  const w = el.clientWidth, h = el.clientHeight, dpr = window.devicePixelRatio || 1;
+  c.width = Math.round(w*dpr); c.height = Math.round(h*dpr); c.style.height = h+'px';
+  ctx.setTransform(dpr,0,0,dpr,0,0); c.W = w; c.H = h;
+  return {c, ctx};
+}
+function ptr(c, e){ const r = c.getBoundingClientRect(); return {x:e.clientX - r.left, y:e.clientY - r.top}; }
+function gridN(el, cols, rows=cols){
+  el.style.gridTemplateColumns = `repeat(${cols},minmax(0,1fr))`;
+  el.style.gridTemplateRows = `repeat(${rows},minmax(0,1fr))`;
+}
+function placeTarget(arena, size, top=46){
+  const b = document.createElement('button'); b.type = 'button'; b.className = 'target'; b.setAttribute('aria-label','Target');
+  b.style.setProperty('--s', size+'px');
+  const W = arena.clientWidth, H = arena.clientHeight, m = size/2 + 8;
+  b.style.left = (m + Math.random()*Math.max(0, W - 2*m)) + 'px';
+  b.style.top = (top + m + Math.random()*Math.max(0, H - top - 2*m - 30)) + 'px';
+  arena.appendChild(b); return b;
+}
+function segDist(a, b, p){
+  const dx = b.x-a.x, dy = b.y-a.y, L = dx*dx + dy*dy;
+  let t = L ? ((p.x-a.x)*dx + (p.y-a.y)*dy)/L : 0; t = clamp(t, 0, 1);
+  return Math.hypot(p.x - (a.x+t*dx), p.y - (a.y+t*dy));
+}
+function onSwipe(api, el, fn){
+  let sx = null, sy = null;
+  api.on(el, 'pointerdown', e => { sx = e.clientX; sy = e.clientY; });
+  api.on(el, 'pointerup', e => {
+    if(sx == null) return;
+    const dx = e.clientX - sx, dy = e.clientY - sy; sx = null;
+    if(Math.max(Math.abs(dx), Math.abs(dy)) < 24) return;
+    fn(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'R' : 'L') : (dy > 0 ? 'D' : 'U'));
+  });
+  api.on(el, 'pointercancel', () => { sx = null; });
+}
+/* everything a game registers goes in a bag that is emptied when the game stops */
+function bag(){
+  const offs = [], tids = new Set(); let alive = true;
+  return {
+    on(t, type, fn, o){ t.addEventListener(type, fn, o); offs.push(() => t.removeEventListener(type, fn, o)); },
+    after(fn, ms){ const id = setTimeout(() => { tids.delete(id); if(alive) fn(); }, ms); tids.add(id); return id; },
+    every(fn, ms){ const id = setInterval(() => { if(alive) fn(); }, ms); tids.add(id); return id; },
+    loop(fn){
+      let raf, last = performance.now();
+      const f = t => { if(!alive) return; const dt = Math.min(0.05, Math.max(0, (t-last)/1000)); last = t; fn(dt); if(alive) raf = requestAnimationFrame(f); };
+      raf = requestAnimationFrame(f); offs.push(() => cancelAnimationFrame(raf));
+    },
+    run(){ alive = false; tids.forEach(id => { clearTimeout(id); clearInterval(id); }); tids.clear(); offs.splice(0).forEach(f => { try{ f(); }catch(e){} }); }
+  };
+}
+
+/* =========================================================
+   Games
+   ========================================================= */
+const GAMES = [];
+const game = def => GAMES.push(def);
+const CATS = [
+  {id:'all', label:'All'}, {id:'reaction', label:'Reaction'}, {id:'aim', label:'Aim'}, {id:'arcade', label:'Arcade'},
+  {id:'puzzle', label:'Puzzle'}, {id:'memory', label:'Memory'}, {id:'word', label:'Word'}, {id:'two', label:'2 Player'}
+];
+
+/* ---------- Reaction Time ---------- */
+game({
+  id:'reaction', cat:'reaction', title:'Reaction Time', icon:'⚡', color:'var(--blue)',
+  blurb:'Click the moment it turns green.', how:'Click (or press Space) to start, wait for green, then click as fast as you can. Every 5 tries you get your average.',
+  lower:true, fmt:v => v+' ms',
+  extraBest:{key:'avg', label:'Best avg'},
+  mount(el, api){
+    el.classList.add('flush');
+    el.innerHTML = '<button class="rx" type="button"></button>';
+    const b = $('.rx', el);
+    let state = 'idle', t0 = 0, tid = null, set5 = [];
+    const dots = () => `<div class="dots" aria-label="${set5.length} of 5 tries">${[0,1,2,3,4].map(i => `<i class="${i < set5.length ? 'on' : ''}"></i>`).join('')}</div>`;
+    const show = (s, big, sub='') => { state = s; b.dataset.s = s; b.innerHTML = `<strong>${big}</strong><span>${sub}</span>${dots()}`; };
+    show('idle', 'Click to start', 'When the red box turns green, click as fast as you can.');
+    const hit = () => {
+      if(state === 'wait'){ api.cancel(tid); api.beep(160, .2); show('early', 'Too soon!', 'Wait for green. Click to try again.'); return; }
+      if(state === 'go'){
+        const ms = Math.round(performance.now() - t0);
+        set5.push(ms);
+        const r = api.report(ms);
+        if(set5.length === 5){
+          const avg = Math.round(set5.reduce((a,v) => a+v, 0) / 5);
+          const ra = api.reportExtra('avg', avg);
+          show('set', `Average: ${avg} ms`,
+            `Last try ${ms} ms${r.isNew ? ' (new best!)' : ''}. ${ra.isNew ? 'New best average!' : `Best average: ${ra.best} ms.`} Best single: ${r.best} ms. Click to start a new set.`);
+          set5 = [];
+          b.querySelector('.dots').remove();
+        } else {
+          show('done', ms + ' ms', `${r.isNew ? 'New personal best! ' : `Best: ${r.best} ms. `}Try ${set5.length} of 5. Click to go again.`);
+        }
+        return;
+      }
+      show('wait', 'Wait for green…');
+      tid = api.after(() => { show('go', 'Click!'); t0 = performance.now(); }, 1200 + Math.random()*2800);
+    };
+    api.on(b, 'pointerdown', e => { if(e.button === 0) hit(); });
+    api.on(b, 'keydown', e => { if((e.key === ' ' || e.key === 'Enter') && !e.repeat){ e.preventDefault(); hit(); } });
+    b.focus({preventScroll:true});
+  }
+});
+
+/* ---------- Quick Draw (new) ---------- */
+game({
+  id:'quick-draw', cat:'reaction', isNew:true, title:'Quick Draw', icon:'🤠', color:'var(--orange)',
+  blurb:'Wait for the target, then hit it fast.', how:'Click anywhere to start. After a random wait a target pops up somewhere. Hit it as fast as you can. 10 rounds. Clicking before it appears adds 300 ms.',
+  lower:true, fmt:v => v+' ms avg',
+  mount(el, api){
+    el.classList.add('flush');
+    el.innerHTML = '<div class="arena"></div><div class="hud float"><span>Round <b class="r">0</b>/10</span><span>Last <b class="l">–</b></span></div><p class="float-msg" style="bottom:auto;top:46%">Click anywhere to start</p>';
+    const arena = $('.arena', el), msg = $('.float-msg', el), rEl = $('.r', el), lEl = $('.l', el);
+    let round = 0, times = [], state = 'idle', t0 = 0, tid = null, target = null, early = 0;
+    function nextRound(){ state = 'wait'; msg.textContent = 'Wait for it…'; msg.hidden = false; tid = api.after(appear, 900 + Math.random()*2200); }
+    function appear(){
+      state = 'go'; msg.hidden = true; target = placeTarget(arena, 56); t0 = performance.now();
+      api.on(target, 'pointerdown', e => { e.stopPropagation(); hitT(); });
+    }
+    function hitT(){
+      if(state !== 'go') return;
+      const ms = Math.round(performance.now() - t0); times.push(ms);
+      target.remove(); target = null; round++; rEl.textContent = round; lEl.textContent = ms + ' ms'; api.beep(720, .05);
+      if(round >= 10){
+        state = 'done';
+        const avg = Math.round((times.reduce((a,v) => a+v, 0) + early*300) / times.length);
+        api.end(avg, `Fastest ${Math.min(...times)} ms · ${early} early click${early === 1 ? '' : 's'}`);
+      } else nextRound();
+    }
+    api.on(arena, 'pointerdown', () => {
+      if(state === 'idle'){ nextRound(); return; }
+      if(state === 'wait'){ api.cancel(tid); early++; state = 'penalty'; msg.textContent = 'Too early! +300 ms'; api.beep(150, .2); tid = api.after(nextRound, 800); }
+    });
+  }
+});
+
+/* ---------- Go / No-Go (new) ---------- */
+game({
+  id:'go-no-go', cat:'reaction', isNew:true, title:'Go / Stop', icon:'🚦', color:'var(--green)',
+  blurb:'Tap on green. Freeze on red.', how:'Tap the stage or press Space when a green GO circle appears. Do nothing when a red STOP square appears. It gets faster. 3 lives.',
+  fmt:v => v+' hits',
+  mount(el, api){
+    el.innerHTML = '<div class="hud"><span>Score <b class="c">0</b></span><span>Lives <b class="lv">♥♥♥</b></span></div><div class="gng-area"><div class="gng"></div></div><p class="msg" aria-live="polite">Tap or press Space to start.</p>';
+    const s = $('.gng', el), msg = $('.msg', el), cEl = $('.c', el), lEl = $('.lv', el);
+    let state = 'idle', isGo = false, win = 1000, score = 0, lives = 3, tid = null;
+    function next(){ state = 'gap'; s.className = 'gng'; s.textContent = ''; tid = api.after(appear, 400 + Math.random()*700); }
+    function appear(){
+      isGo = Math.random() < 0.7; state = 'show';
+      s.className = 'gng ' + (isGo ? 'go' : 'nogo'); s.textContent = isGo ? 'GO' : 'STOP';
+      tid = api.after(() => { if(isGo) lose('Too slow!'); else next(); }, isGo ? win : Math.max(600, win));
+    }
+    function respond(){
+      if(state === 'idle'){ msg.textContent = 'Green = tap. Red = don’t.'; next(); return; }
+      if(state === 'gap'){ api.cancel(tid); lose('Too early!'); return; }
+      if(state !== 'show') return;
+      api.cancel(tid);
+      if(isGo){ score++; cEl.textContent = score; win = Math.max(380, win*0.96); api.beep(720, .05); msg.textContent = 'Nice!'; next(); }
+      else lose('That was red!');
+    }
+    function lose(why){
+      lives--; lEl.textContent = '♥'.repeat(Math.max(0,lives)) + '♡'.repeat(3 - Math.max(0,lives));
+      msg.textContent = why; api.beep(140, .25); s.className = 'gng'; s.textContent = '';
+      if(lives <= 0){ state = 'over'; api.end(score, why); }
+      else { state = 'pause'; tid = api.after(next, 900); }
+    }
+    api.on(el, 'pointerdown', e => { if(e.target.closest('.end')) return; respond(); });
+    api.on(window, 'keydown', e => { if(e.code === 'Space' && !e.repeat && !(e.target.closest && e.target.closest('button,a'))) respond(); });
+  }
+});
+
+/* ---------- Lightning Tiles (new) ---------- */
+game({
+  id:'lightning-tiles', cat:'reaction', isNew:true, title:'Lightning Tiles', icon:'🌩️', color:'var(--sky)',
+  blurb:'Hit the lit tile before it fades.', how:'Press Start. Tap each tile the moment it lights up. Tiles fade faster as you go. Missing one or tapping the wrong tile costs a life. 3 lives.',
+  fmt:v => v+' hits',
+  mount(el, api){
+    el.innerHTML = '<div class="hud"><span>Score <b class="c">0</b></span><span>Lives <b class="lv">♥♥♥</b></span></div><div class="tiles lt"></div><button class="btn primary go" type="button">Start</button>';
+    const grid = $('.lt', el), cEl = $('.c', el), lEl = $('.lv', el), go = $('.go', el);
+    gridN(grid, 4);
+    let lit = -1, win = 1100, score = 0, lives = 3, over = false, tid = null;
+    const tiles = Array.from({length:16}, (_, i) => {
+      const b = document.createElement('button'); b.type = 'button'; b.setAttribute('aria-label', 'Tile '+(i+1));
+      api.on(b, 'pointerdown', () => press(i)); grid.appendChild(b); return b;
+    });
+    function light(){
+      if(over) return;
+      let i; do{ i = rand(16); }while(i === lit);
+      lit = i; tiles[i].classList.add('lit');
+      tid = api.after(() => miss('Too slow!', -1), win);
+    }
+    function press(i){
+      if(over || lit < 0) return;
+      if(i === lit){ api.cancel(tid); tiles[i].classList.remove('lit'); lit = -1; score++; cEl.textContent = score; win = Math.max(380, win*0.97); api.beep(600 + (score%8)*40, .04); api.after(light, 110); }
+      else miss('Wrong tile!', i);
+    }
+    function miss(why, wrong){
+      api.cancel(tid); if(lit >= 0) tiles[lit].classList.remove('lit'); lit = -1;
+      if(wrong >= 0){ tiles[wrong].classList.add('miss'); api.after(() => tiles[wrong].classList.remove('miss'), 300); }
+      lives--; lEl.textContent = '♥'.repeat(Math.max(0,lives)) + '♡'.repeat(3 - Math.max(0,lives)); api.beep(140, .25);
+      if(lives <= 0){ over = true; api.end(score, why); } else api.after(light, 700);
+    }
+    api.on(go, 'click', () => { go.remove(); light(); });
+  }
+});
+
+/* ---------- Bonk ---------- */
+game({
+  id:'bonk', cat:'reaction', title:'Bonk', icon:'🔨', color:'var(--red)',
+  blurb:'Bonk the critters before they hide.', how:'Critters pop out of the holes. Bonk as many as you can in 30 seconds. Gold ones are worth 3.',
+  fmt:v => v+' points',
+  mount(el, api){
+    el.innerHTML = '<div class="hud"><span>Time <b class="t">30</b></span><span>Points <b class="c">0</b></span></div><div class="tiles holes"></div><button class="btn primary go" type="button">Start</button>';
+    const holes = $('.holes', el), tEl = $('.t', el), cEl = $('.c', el), go = $('.go', el);
+    gridN(holes, 3);
+    let pts = 0, over = true, start = 0;
+    const hs = Array.from({length:9}, (_, i) => {
+      const b = document.createElement('button'); b.type = 'button'; b.setAttribute('aria-label','Hole '+(i+1));
+      api.on(b, 'pointerdown', () => {
+        if(over || !b.classList.contains('up')) return;
+        const gold = b.dataset.gold === '1';
+        b.classList.remove('up'); b.classList.add('hit'); b.textContent = '💫';
+        pts += gold ? 3 : 1; cEl.textContent = pts; api.beep(gold ? 880 : 300, .08);
+        api.after(() => { b.classList.remove('hit'); b.textContent = ''; }, 250);
+      });
+      holes.appendChild(b); return b;
+    });
+    function pop(){
+      if(over) return;
+      const free = hs.filter(h => !h.classList.contains('up') && !h.classList.contains('hit'));
+      if(free.length){
+        const h = free[rand(free.length)]; const gold = Math.random() < 0.12;
+        h.classList.add('up'); h.dataset.gold = gold ? '1' : ''; h.textContent = gold ? '🌟' : '🐹';
+        api.after(() => { if(h.classList.contains('up')){ h.classList.remove('up'); h.textContent = ''; } }, (gold ? 550 : 700) + Math.random()*450);
+      }
+      const t = (Date.now() - start)/1000;
+      api.after(pop, Math.max(280, 750 - t*14) * (0.7 + Math.random()*0.6));
+    }
+    api.on(go, 'click', () => {
+      go.remove(); over = false; start = Date.now(); pop();
+      api.every(() => {
+        if(over) return;
+        const left = 30 - (Date.now() - start)/1000; tEl.textContent = Math.max(0, Math.ceil(left));
+        if(left <= 0){ over = true; hs.forEach(h => { h.className = ''; h.textContent = ''; }); api.end(pts); }
+      }, 200);
+    });
+  }
+});
+
+/* ---------- Aim Trainer ---------- */
+game({
+  id:'aim-trainer', cat:'aim', title:'Aim Trainer', icon:'🎯', color:'var(--red)',
+  blurb:'Hit as many targets as you can in a minute.', how:'Pick a difficulty, then hit the first target to start a 60 second round. Harder levels have smaller targets. Missed clicks lower your accuracy.',
+  modes:[{id:'easy', label:'Easy'}, {id:'medium', label:'Medium', def:true}, {id:'hard', label:'Hard'}],
+  fmt:v => v+' hits',
+  mount(el, api, mode){
+    const size = {easy:72, medium:48, hard:28}[mode] || 48;
+    el.classList.add('flush');
+    el.innerHTML = '<div class="arena"></div><div class="hud float"><span>Time <b class="t">60</b></span><span>Hits <b class="c">0</b></span><span>Accuracy <b class="a">–</b></span></div><p class="float-msg">Hit the target to start</p>';
+    const arena = $('.arena', el), tEl = $('.t', el), cEl = $('.c', el), aEl = $('.a', el), msg = $('.float-msg', el);
+    let hits = 0, misses = 0, start = 0, over = false;
+    const acc = () => hits + misses ? Math.round(hits/(hits+misses)*100) + '%' : '–';
+    function spawn(){
+      const t = placeTarget(arena, size);
+      api.on(t, 'pointerdown', e => {
+        e.stopPropagation(); if(over) return;
+        if(!start){ start = Date.now(); msg.hidden = true; api.every(tick, 100); }
+        t.remove(); hits++; cEl.textContent = hits; aEl.textContent = acc(); api.beep(720, .04); spawn();
+      });
+    }
+    function tick(){
+      if(over) return;
+      const left = 60 - (Date.now() - start)/1000; tEl.textContent = Math.max(0, Math.ceil(left));
+      if(left <= 0){ over = true; $$('.target', arena).forEach(x => x.remove()); api.end(hits, `Accuracy ${acc()} · ${(hits/60).toFixed(2)} hits per second`); }
+    }
+    api.on(arena, 'pointerdown', () => { if(!start || over) return; misses++; aEl.textContent = acc(); });
+    spawn();
+  }
+});
+
+/* ---------- Balloon Pop (new) ---------- */
+game({
+  id:'balloon-pop', cat:'aim', isNew:true, title:'Balloon Pop', icon:'🎈', color:'var(--pink)',
+  blurb:'Pop balloons before they float away.', how:'Click or tap anywhere to start. Pop the balloons before they float off the top. They get faster. Let 5 escape and it’s over.',
+  fmt:v => v+' popped',
+  mount(el, api){
+    el.classList.add('flush');
+    const {c, ctx} = makeCanvas(el); const P = pal();
+    let bs = [], pops = [], time = 0, spawnT = 0, score = 0, lives = 5, running = false, over = false;
+    const small = c.W < 500;
+    function spawn(){
+      const r = small ? 22 + Math.random()*10 : 24 + Math.random()*14;
+      bs.push({x:r + Math.random()*(c.W - 2*r), y:c.H + r + 10, r, v:(55 + Math.min(190, time*3.2))*(0.85 + Math.random()*0.4), hue:rand(360), ph:Math.random()*6});
+    }
+    api.on(c, 'pointerdown', e => {
+      if(over) return;
+      if(!running){ running = true; return; }
+      const p = ptr(c, e);
+      for(let i=bs.length-1;i>=0;i--){
+        const b = bs[i], bx = b.x + Math.sin(b.ph)*3;
+        if((p.x-bx)**2 + (p.y-b.y)**2 <= (b.r+6)**2){
+          bs.splice(i,1); score++; pops.push({x:bx, y:b.y, r:b.r, t:0, hue:b.hue}); api.beep(500 + rand(300), .05); return;
+        }
+      }
+    });
+    api.loop(dt => {
+      if(running && !over){
+        time += dt; spawnT -= dt;
+        if(spawnT <= 0){ spawnT = Math.max(0.34, 1.0 - time*0.012); spawn(); }
+        for(const b of bs){ b.y -= b.v*dt; b.ph += dt*2; }
+        const n = bs.length; bs = bs.filter(b => b.y + b.r > 0); const escaped = n - bs.length;
+        if(escaped){ lives = Math.max(0, lives - escaped); api.beep(200, .15); if(lives === 0){ over = true; api.end(score, 'Too many balloons got away'); } }
+      }
+      pops.forEach(p => p.t += dt); pops = pops.filter(p => p.t < 0.3);
+      ctx.clearRect(0, 0, c.W, c.H);
+      for(const b of bs){
+        const x = b.x + Math.sin(b.ph)*3;
+        ctx.strokeStyle = P.muted; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(x, b.y + b.r); ctx.quadraticCurveTo(x - 6, b.y + b.r*1.5, x, b.y + b.r*2.1); ctx.stroke();
+        ctx.fillStyle = `hsl(${b.hue} 75% 58%)`; ctx.beginPath(); ctx.ellipse(x, b.y, b.r*0.86, b.r, 0, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(x - 5, b.y + b.r + 6); ctx.lineTo(x + 5, b.y + b.r + 6); ctx.lineTo(x, b.y + b.r - 1); ctx.fill();
+        ctx.fillStyle = 'rgba(255,255,255,.45)'; ctx.beginPath(); ctx.ellipse(x - b.r*0.3, b.y - b.r*0.35, b.r*0.18, b.r*0.3, -0.4, 0, Math.PI*2); ctx.fill();
+      }
+      for(const p of pops){
+        ctx.strokeStyle = `hsla(${p.hue} 75% 55% / ${1 - p.t/0.3})`; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.r*(1 + p.t*3), 0, Math.PI*2); ctx.stroke();
+      }
+      txt(ctx, score, 16, 40, P.ink, 28, 800, 'left');
+      txt(ctx, '♥'.repeat(lives) + '♡'.repeat(5 - lives), c.W - 16, 38, P.red, 22, 600, 'right');
+      if(!running) txt(ctx, 'Click or tap to start', c.W/2, c.H/2, P.ink);
+    });
+  }
+});
+
+/* ---------- Tracker (new) ---------- */
+game({
+  id:'tracker', cat:'aim', isNew:true, title:'Tracker', icon:'🛸', color:'var(--purple)',
+  blurb:'Keep your cursor on the moving target.', how:'Click to start, then keep your mouse (or finger) on the moving target for 30 seconds. It speeds up as you go.',
+  fmt:v => v+'% on target',
+  mount(el, api){
+    el.classList.add('flush');
+    const {c, ctx} = makeCanvas(el); const P = pal();
+    const R = c.W < 500 ? 30 : 36, D = 30;
+    let tx = c.W/2, ty = c.H/2, vx = 0, vy = 0, wx = tx, wy = ty, px = null, py = null, onT = 0, time = 0, running = false, over = false;
+    const newWay = () => { wx = R + Math.random()*(c.W - 2*R); wy = 60 + R + Math.random()*(c.H - 60 - 2*R); };
+    newWay();
+    const setP = e => { const p = ptr(c, e); px = p.x; py = p.y; };
+    api.on(c, 'pointermove', setP);
+    api.on(c, 'pointerdown', e => { setP(e); if(!running && !over) running = true; });
+    api.on(c, 'pointerleave', () => { px = null; });
+    api.loop(dt => {
+      let inside = px != null && (px-tx)**2 + (py-ty)**2 <= R*R;
+      if(running && !over){
+        time += dt;
+        const sp = 150 + time*5, dx = wx - tx, dy = wy - ty, d = Math.hypot(dx, dy);
+        if(d < 24) newWay();
+        else { const k = Math.min(1, dt*2.5); vx += (dx/d*sp - vx)*k; vy += (dy/d*sp - vy)*k; }
+        tx = clamp(tx + vx*dt, R, c.W - R); ty = clamp(ty + vy*dt, 50 + R, c.H - R);
+        inside = px != null && (px-tx)**2 + (py-ty)**2 <= R*R;
+        if(inside) onT += dt;
+        if(time >= D){ over = true; api.end(Math.round(onT/D*100), `${onT.toFixed(1)} of ${D} seconds on target`); }
+      }
+      ctx.clearRect(0, 0, c.W, c.H);
+      ctx.fillStyle = inside ? P.green : P.purple; ctx.beginPath(); ctx.arc(tx, ty, R, 0, Math.PI*2); ctx.fill();
+      ctx.lineWidth = 3; ctx.strokeStyle = P.ink; ctx.stroke();
+      ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(tx, ty, R*0.25, 0, Math.PI*2); ctx.fill();
+      txt(ctx, `${Math.max(0, D - time).toFixed(1)}s`, 16, 38, P.ink, 24, 800, 'left');
+      txt(ctx, `${time > 0 ? Math.round(onT/Math.max(time, 0.001)*100) : 0}%`, c.W - 16, 38, P.ink, 24, 800, 'right');
+      if(!running) txt(ctx, 'Click to start, then follow the target', c.W/2, 90, P.ink, 18);
+    });
+  }
+});
+
+/* ---------- Fruit Slice (new) ---------- */
+game({
+  id:'fruit-slice', cat:'aim', isNew:true, title:'Fruit Slice', icon:'🍉', color:'var(--lime)',
+  blurb:'Swipe to slice fruit. Avoid the bombs.', how:'Press and drag (or swipe) across fruit to slice it. Don’t slice bombs. Letting 3 fruit fall ends the game.',
+  fmt:v => v+' sliced',
+  mount(el, api){
+    el.classList.add('flush');
+    const {c, ctx} = makeCanvas(el); const P = pal();
+    const G = c.H*1.4, R = c.W < 500 ? 26 : 32;
+    const FRUITS = ['🍎','🍊','🍋','🍉','🍇','🍓','🍑','🍍','🥝','🍌'];
+    let items = [], halves = [], trail = [], down = false, last = null, time = 0, waveT = 0.5, score = 0, drops = 0, running = false, over = false, boom = null;
+    function toss(bomb){
+      const x = c.W*(0.15 + Math.random()*0.7), peak = c.H*(0.45 + Math.random()*0.4);
+      const vy = -Math.sqrt(2*G*peak), tf = 2*Math.sqrt(2*peak/G);
+      const vx = (c.W/2 - x)/tf*(0.3 + Math.random()*0.9);
+      items.push({x, y:c.H + R, vx, vy, r:R, e: bomb ? '💣' : FRUITS[rand(FRUITS.length)], bomb, rot:0, vr:(Math.random() - .5)*5});
+    }
+    function wave(){
+      const n = 1 + rand(Math.min(4, 1 + Math.floor(time/15)));
+      const bombChance = Math.min(0.25, 0.08 + time*0.003);
+      let bombUsed = false;
+      for(let i=0;i<n;i++){ const bomb = i > 0 && !bombUsed && Math.random() < bombChance; if(bomb) bombUsed = true; toss(bomb); }
+      if(n === 1 && time > 10 && Math.random() < bombChance) toss(true);
+    }
+    function slice(a, b){
+      for(let i=items.length-1;i>=0;i--){
+        const it = items[i];
+        if(segDist(a, b, it) <= it.r){
+          items.splice(i, 1);
+          if(it.bomb){ over = true; boom = {x:it.x, y:it.y, t:0}; api.beep(90, .5); api.after(() => api.end(score, 'You sliced a bomb!'), 600); return; }
+          score++; api.beep(650 + rand(200), .04);
+          halves.push({x:it.x - 4, y:it.y, vx:it.vx - 70, vy:it.vy*0.3, e:it.e, side:-1, rot:it.rot, vr:-3, r:it.r});
+          halves.push({x:it.x + 4, y:it.y, vx:it.vx + 70, vy:it.vy*0.3, e:it.e, side:1, rot:it.rot, vr:3, r:it.r});
+        }
+      }
+    }
+    api.on(c, 'pointerdown', e => { if(over) return; down = true; last = ptr(c, e); if(!running) running = true; try{ c.setPointerCapture(e.pointerId); }catch(err){} });
+    api.on(c, 'pointermove', e => {
+      if(!down || over) return;
+      const p = ptr(c, e); slice(last, p); trail.push({x:p.x, y:p.y, t:0}); last = p;
+    });
+    const up = () => { down = false; last = null; };
+    api.on(c, 'pointerup', up); api.on(c, 'pointercancel', up);
+    api.loop(dt => {
+      if(running && !over){
+        time += dt; waveT -= dt;
+        if(waveT <= 0){ waveT = Math.max(0.8, 1.7 - time*0.02); wave(); }
+      }
+      if(!over){
+        for(const it of items){ it.vy += G*dt; it.x += it.vx*dt; it.y += it.vy*dt; it.rot += it.vr*dt; }
+        const keep = [];
+        for(const it of items){
+          if(it.vy > 0 && it.y > c.H + it.r*2){ if(!it.bomb){ drops++; api.beep(200, .12); } }
+          else keep.push(it);
+        }
+        items = keep;
+        if(drops >= 3){ over = true; api.end(score, '3 fruit hit the floor'); }
+      }
+      for(const h of halves){ h.vy += G*dt; h.x += h.vx*dt; h.y += h.vy*dt; h.rot += h.vr*dt; }
+      halves = halves.filter(h => h.y < c.H + 80);
+      trail.forEach(t => t.t += dt); trail = trail.filter(t => t.t < 0.15);
+      if(boom) boom.t += dt;
+
+      ctx.clearRect(0, 0, c.W, c.H);
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      for(const it of items){
+        ctx.save(); ctx.translate(it.x, it.y); ctx.rotate(it.rot); ctx.font = `${it.r*1.9}px ${EMOJI}`; ctx.fillText(it.e, 0, 0); ctx.restore();
+      }
+      for(const h of halves){
+        ctx.save(); ctx.translate(h.x, h.y); ctx.rotate(h.rot);
+        ctx.beginPath(); ctx.rect(h.side < 0 ? -h.r*1.2 : 0, -h.r*1.2, h.r*1.2, h.r*2.4); ctx.clip();
+        ctx.font = `${h.r*1.9}px ${EMOJI}`; ctx.fillText(h.e, 0, 0); ctx.restore();
+      }
+      if(trail.length > 1){
+        ctx.strokeStyle = P.ink; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+        for(let i=1;i<trail.length;i++){ ctx.globalAlpha = 1 - trail[i].t/0.15; ctx.lineWidth = 2 + i*0.6; ctx.beginPath(); ctx.moveTo(trail[i-1].x, trail[i-1].y); ctx.lineTo(trail[i].x, trail[i].y); ctx.stroke(); }
+        ctx.globalAlpha = 1;
+      }
+      if(boom){ ctx.fillStyle = `rgba(255,140,40,${Math.max(0, 1 - boom.t*2)})`; ctx.beginPath(); ctx.arc(boom.x, boom.y, 30 + boom.t*400, 0, Math.PI*2); ctx.fill(); }
+      txt(ctx, score, 16, 40, P.ink, 28, 800, 'left');
+      txt(ctx, '✕'.repeat(drops) + '·'.repeat(Math.max(0, 3 - drops)), c.W - 16, 38, P.red, 24, 800, 'right');
+      if(!running) txt(ctx, 'Press and drag to slice', c.W/2, c.H/2, P.ink);
+    });
+  }
+});
+
+/* ---------- Click Frenzy ---------- */
+game({
+  id:'click-frenzy', cat:'arcade', title:'Click Frenzy', icon:'👆', color:'var(--pink)',
+  blurb:'How fast can you click?', how:'Pick 1 or 5 seconds. Your first click starts the timer. Click as many times as you can.',
+  modes:[{id:'1', label:'1 second'}, {id:'5', label:'5 seconds', def:true}],
+  fmt:v => v+' clicks',
+  mount(el, api, mode){
+    const D = +mode || 5;
+    el.innerHTML = `<div class="hud"><span>Time <b class="t">${D.toFixed(1)}</b></span><span>Clicks <b class="c">0</b></span></div><button class="bigpad" type="button">Click!</button><p class="msg">Start clicking whenever you’re ready.</p>`;
+    const pad = $('.bigpad', el), tEl = $('.t', el), cEl = $('.c', el);
+    let n = 0, start = 0, done = false;
+    api.on(pad, 'pointerdown', e => {
+      if(done || e.button !== 0) return;
+      if(start && performance.now() - start > D*1000) return;
+      if(!start){
+        start = performance.now();
+        api.loop(() => {
+          if(done) return;
+          const left = Math.max(0, D - (performance.now() - start)/1000); tEl.textContent = left.toFixed(1);
+          if(left <= 0){ done = true; pad.disabled = true; api.end(n, `${(n/D).toFixed(1)} clicks per second`); }
+        });
+      }
+      n++; cEl.textContent = n;
+    });
+  }
+});
+
+/* ---------- Stacker ---------- */
+game({
+  id:'stacker', cat:'arcade', title:'Stacker', icon:'🧱', color:'var(--yellow)',
+  blurb:'Drop blocks to build the tallest tower.', how:'Tap, click, or press Space to drop the sliding block. Anything hanging over the edge falls off. The block gets a little faster every 7 floors, up to a top speed.',
+  fmt:v => v+' floors',
+  mount(el, api){
+    el.classList.add('flush');
+    const {c, ctx} = makeCanvas(el); const P = pal(); const BH = 26;
+    const w0 = Math.min(220, c.W*0.55);
+    let blocks = [{x:(c.W - w0)/2, w:w0}], cur, cam = 0, running = false, over = false, debris = [], note = {s:'', t:0};
+    const level = () => Math.min(6, Math.floor((blocks.length - 1)/7));
+    const speed = () => 170 + level()*38; /* 170 → 398 px/s, then it stops rising */
+    const spawn = () => { const top = blocks[blocks.length-1]; const fromLeft = blocks.length % 2 === 1; cur = {x: fromLeft ? 0 : c.W - top.w, w: top.w, dir: fromLeft ? 1 : -1}; };
+    spawn();
+    const hue = i => `hsl(${(i*17 + 30) % 360} 72% 58%)`;
+    const yOf = i => c.H - (i+1)*BH + cam;
+    function drop(){
+      if(over) return;
+      if(!running){ running = true; return; }
+      const top = blocks[blocks.length-1], i = blocks.length;
+      let l = Math.max(cur.x, top.x), r = Math.min(cur.x + cur.w, top.x + top.w);
+      if(r - l <= 0){ over = true; debris.push({x:cur.x, w:cur.w, i, dy:0, vy:0}); api.beep(110, .4); api.after(() => api.end(blocks.length - 1, `Top speed level ${level()+1} of 7`), 600); return; }
+      if(Math.abs(cur.x - top.x) < 5){ l = top.x; r = top.x + top.w; note = {s:'Perfect!', t:0.9}; api.beep(880, .12); }
+      else {
+        api.beep(440, .06);
+        if(cur.x < l) debris.push({x:cur.x, w:l - cur.x, i, dy:0, vy:0});
+        if(cur.x + cur.w > r) debris.push({x:r, w:cur.x + cur.w - r, i, dy:0, vy:0});
+      }
+      const before = level();
+      blocks.push({x:l, w:r - l});
+      if(level() > before) note = {s: level() === 6 ? 'Top speed!' : 'Faster!', t:1.2};
+      spawn();
+    }
+    api.on(c, 'pointerdown', drop);
+    api.on(window, 'keydown', e => { if(e.code === 'Space' && !e.repeat && !(e.target.closest && e.target.closest('button,a,input'))) drop(); });
+    api.loop(dt => {
+      if(running && !over){
+        cur.x += cur.dir*speed()*dt;
+        if(cur.x < 0){ cur.x = 0; cur.dir = 1; }
+        if(cur.x + cur.w > c.W){ cur.x = c.W - cur.w; cur.dir = -1; }
+      }
+      for(const d of debris){ d.vy += 1400*dt; d.dy += d.vy*dt; }
+      debris = debris.filter(d => yOf(d.i) + d.dy < c.H + 60);
+      note.t = Math.max(0, note.t - dt);
+      cam += (Math.max(0, (blocks.length + 2)*BH - c.H*0.6) - cam)*Math.min(1, dt*8);
+      ctx.clearRect(0, 0, c.W, c.H);
+      blocks.forEach((b, i) => { const y = yOf(i); if(y > -BH && y < c.H){ ctx.fillStyle = hue(i); ctx.fillRect(b.x, y, b.w, BH - 2); } });
+      for(const d of debris){ ctx.fillStyle = hue(d.i); ctx.fillRect(d.x, yOf(d.i) + d.dy, d.w, BH - 2); }
+      if(!over){ ctx.fillStyle = hue(blocks.length); ctx.fillRect(cur.x, yOf(blocks.length), cur.w, BH - 2); }
+      txt(ctx, blocks.length - 1, 16, 40, P.ink, 28, 800, 'left');
+      txt(ctx, `Speed ${level()+1}/7`, c.W - 16, 36, P.muted, 16, 600, 'right');
+      if(note.t > 0) txt(ctx, note.s, c.W/2, 70, P.ink, 22, 800);
+      if(!running) txt(ctx, 'Tap or press Space to start', c.W/2, c.H/2 - 40, P.ink);
+    });
+  }
+});
+
+/* ---------- Dodge ---------- */
+game({
+  id:'dodge', cat:'arcade', title:'Dodge', icon:'☄️', color:'var(--green)',
+  blurb:'Survive the falling blocks.', how:'Move with your mouse, finger, or arrow keys. Every 30 seconds the blocks fall faster and more of them appear, up to a top level that is still survivable.',
+  fmt:v => v.toFixed(1)+' s',
+  mount(el, api){
+    el.classList.add('flush');
+    const {c, ctx} = makeCanvas(el); const P = pal();
+    const R = 12, py = c.H - 34, widthF = Math.max(1, 600/c.W), MAXL = 6;
+    let px = c.W/2, tx = px, obs = [], time = 0, spawnT = 0, running = false, over = false, lvl = 0, note = 0;
+    const keys = {}; api.on(window, 'blur', () => { for(const k in keys) keys[k] = false; });
+    api.loop(dt => {
+      if(running && !over){
+        time += dt;
+        const nl = Math.min(MAXL, Math.floor(time/30));
+        if(nl > lvl){ lvl = nl; note = 1.8; api.beep(880, .15); }
+        if(keys.l) tx -= 430*dt; if(keys.r) tx += 430*dt;
+        tx = clamp(tx, R, c.W - R); px += (tx - px)*Math.min(1, dt*16);
+        spawnT -= dt;
+        if(spawnT <= 0){
+          spawnT = Math.max(0.2, 0.62*Math.pow(0.84, lvl))*widthF*(0.8 + Math.random()*0.4);
+          const w = 20 + Math.random()*45;
+          obs.push({x:Math.random()*(c.W - w), y:-30, w, h:16 + Math.random()*12, v:180*(1 + 0.22*lvl)*(0.85 + Math.random()*0.3)});
+        }
+        for(const o of obs){
+          o.y += o.v*dt;
+          const cx = clamp(px, o.x, o.x + o.w), cy = clamp(py, o.y, o.y + o.h);
+          if((cx - px)**2 + (cy - py)**2 < R*R && !over){ over = true; api.beep(110, .4); api.end(Math.round(time*10)/10, `Reached level ${lvl+1}`); }
+        }
+        obs = obs.filter(o => o.y < c.H + 40);
+      }
+      note = Math.max(0, note - dt);
+      ctx.clearRect(0, 0, c.W, c.H);
+      ctx.fillStyle = P.red; obs.forEach(o => ctx.fillRect(o.x, o.y, o.w, o.h));
+      ctx.fillStyle = P.green; ctx.beginPath(); ctx.arc(px, py, R, 0, Math.PI*2); ctx.fill();
+      ctx.lineWidth = 2.5; ctx.strokeStyle = P.ink; ctx.stroke();
+      txt(ctx, time.toFixed(1) + 's', 16, 40, P.ink, 28, 800, 'left');
+      txt(ctx, `Level ${lvl+1}${lvl === MAXL ? ' (max)' : ''}`, c.W - 16, 36, P.muted, 16, 600, 'right');
+      if(note > 0) txt(ctx, lvl === MAXL ? 'Top level!' : 'Faster! More blocks!', c.W/2, 80, P.ink, 22, 800);
+      if(!running) txt(ctx, 'Tap or press Space to start', c.W/2, c.H/2, P.ink);
+    });
+    const setX = e => { tx = ptr(c, e).x; };
+    api.on(c, 'pointermove', setX);
+    api.on(c, 'pointerdown', e => { setX(e); if(!over) running = true; });
+    api.on(window, 'keydown', e => {
+      if(e.target.closest && e.target.closest('button,a,input')) return;
+      if(e.ctrlKey || e.metaKey || e.altKey) return;
+      if(e.key === 'ArrowLeft' || e.code === 'KeyA'){ keys.l = true; if(!over) running = true; }
+      if(e.key === 'ArrowRight' || e.code === 'KeyD'){ keys.r = true; if(!over) running = true; }
+      if(e.code === 'Space' && !over) running = true;
+    });
+    api.on(window, 'keyup', e => { if(e.key === 'ArrowLeft' || e.code === 'KeyA') keys.l = false; if(e.key === 'ArrowRight' || e.code === 'KeyD') keys.r = false; });
+  }
+});
+
+/* ---------- Slither ---------- */
+game({
+  id:'slither', cat:'arcade', title:'Slither', icon:'🐍', color:'var(--green)',
+  blurb:'Eat fruit, grow, don’t bite your tail.', how:'Use the arrow keys, WASD, or swipe. Eat the fruit to grow. Don’t hit the walls or yourself.',
+  modes:[{id:'slow', label:'Slow'}, {id:'normal', label:'Normal', def:true}, {id:'fast', label:'Fast'}],
+  fmt:v => v+' fruit',
+  mount(el, api, mode){
+    el.classList.add('flush');
+    const {c, ctx} = makeCanvas(el); const P = pal(); const S = 22;
+    const base = {slow:160, normal:125, fast:90}[mode] || 125;
+    const FRUIT = ['🍎','🍊','🍇','🍓','🍒','🍌','🍑','🍉'];
+    const cols = Math.floor(c.W/S), rows = Math.floor(c.H/S), ox = (c.W - cols*S)/2, oy = (c.H - rows*S)/2;
+    const mx = Math.floor(cols/2), my = Math.floor(rows/2);
+    let snake = [{x:mx, y:my}, {x:mx-1, y:my}, {x:mx-2, y:my}], dir = {x:1, y:0}, queue = [], food, fruit, score = 0, running = false, over = false, steps = 0;
+    const place = () => { do{ food = {x:rand(cols), y:rand(rows)}; }while(snake.some(s => s.x === food.x && s.y === food.y)); fruit = FRUIT[rand(FRUIT.length)]; };
+    place();
+    const cx = s => ox + s.x*S + S/2, cy = s => oy + s.y*S + S/2;
+    function draw(){
+      ctx.clearRect(0, 0, c.W, c.H);
+      ctx.fillStyle = P.line;
+      for(let x=0;x<cols;x++) for(let y=0;y<rows;y++) if((x+y)%2) ctx.fillRect(ox + x*S, oy + y*S, S, S);
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = `${S*0.95}px ${EMOJI}`;
+      ctx.fillText(fruit, cx(food), cy(food) + 1);
+      /* body: thick rounded line that tapers toward the tail, with stripes */
+      ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+      const n = snake.length;
+      for(let i=n-1;i>0;i--){
+        const a = snake[i], b = snake[i-1];
+        ctx.lineWidth = S*(0.42 + 0.4*(1 - i/n));
+        ctx.strokeStyle = i % 2 ? '#3f9f43' : '#2f7d33';
+        ctx.beginPath(); ctx.moveTo(cx(a), cy(a)); ctx.lineTo(cx(b), cy(b)); ctx.stroke();
+      }
+      /* head */
+      const h = snake[0], hx = cx(h), hy = cy(h), fx = dir.x, fy = dir.y, sx = -fy, sy = fx;
+      if(steps % 6 < 2 && !over){
+        ctx.strokeStyle = '#e5533d'; ctx.lineWidth = 2; ctx.beginPath();
+        const tx = hx + fx*S*0.75, ty = hy + fy*S*0.75;
+        ctx.moveTo(hx + fx*S*0.4, hy + fy*S*0.4); ctx.lineTo(tx, ty);
+        ctx.lineTo(tx + fx*S*0.15 + sx*S*0.12, ty + fy*S*0.15 + sy*S*0.12);
+        ctx.moveTo(tx, ty); ctx.lineTo(tx + fx*S*0.15 - sx*S*0.12, ty + fy*S*0.15 - sy*S*0.12); ctx.stroke();
+      }
+      ctx.fillStyle = '#2f7d33'; ctx.beginPath(); ctx.ellipse(hx + fx*2, hy + fy*2, S*0.52, S*0.52, 0, 0, Math.PI*2); ctx.fill();
+      for(const side of [-1, 1]){
+        const ex = hx + fx*S*0.15 + sx*S*0.22*side, ey = hy + fy*S*0.15 + sy*S*0.22*side;
+        ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(ex, ey, S*0.14, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#111'; ctx.beginPath(); ctx.arc(ex + fx*S*0.04, ey + fy*S*0.04, S*0.07, 0, Math.PI*2); ctx.fill();
+      }
+      txt(ctx, score, 16, 40, P.ink, 28, 800, 'left');
+      if(!running) txt(ctx, 'Press an arrow key or swipe to start', c.W/2, c.H/2 - 50, P.ink);
+    }
+    function step(){
+      if(over) return;
+      if(queue.length) dir = queue.shift();
+      const h = {x:snake[0].x + dir.x, y:snake[0].y + dir.y};
+      const eats = h.x === food.x && h.y === food.y;
+      const body = eats ? snake : snake.slice(0, -1);
+      if(h.x < 0 || h.y < 0 || h.x >= cols || h.y >= rows || body.some(s => s.x === h.x && s.y === h.y)){
+        over = true; api.beep(110, .4); draw(); api.after(() => api.end(score, `Length ${snake.length}`), 400); return;
+      }
+      snake.unshift(h); steps++;
+      if(eats){ score++; api.beep(660, .08); if(snake.length >= cols*rows){ over = true; draw(); api.end(score, 'You filled the board!'); return; } place(); }
+      else snake.pop();
+      draw();
+      api.after(step, Math.max(55, base - score*2));
+    }
+    function turn(d){
+      if(over) return;
+      const lastD = queue.length ? queue[queue.length-1] : dir;
+      const reverse = d.x === -lastD.x && d.y === -lastD.y, same = d.x === lastD.x && d.y === lastD.y;
+      if(!running && reverse){ snake.reverse(); dir = d; queue = []; running = true; step(); return; }
+      if(!reverse && !same && queue.length < 3) queue.push(d);
+      if(!running){ running = true; step(); }
+    }
+    const DIRS = {ArrowUp:{x:0,y:-1}, KeyW:{x:0,y:-1}, ArrowDown:{x:0,y:1}, KeyS:{x:0,y:1}, ArrowLeft:{x:-1,y:0}, KeyA:{x:-1,y:0}, ArrowRight:{x:1,y:0}, KeyD:{x:1,y:0}};
+    api.on(window, 'keydown', e => { const d = DIRS[e.code]; if(d && !e.ctrlKey && !e.metaKey && !e.altKey && !(e.target.closest && e.target.closest('input'))){ e.preventDefault(); turn(d); } });
+    onSwipe(api, c, s => turn({U:{x:0,y:-1}, D:{x:0,y:1}, L:{x:-1,y:0}, R:{x:1,y:0}}[s]));
+    draw();
+  }
+});
+
+/* ---------- Sky Hopper ---------- */
+game({
+  id:'sky-hopper', cat:'arcade', title:'Sky Hopper', icon:'🐤', color:'var(--yellow)',
+  blurb:'Tap to flap through the gaps.', how:'Tap, click, or press Space to flap. Fly through the gaps between the pillars.',
+  fmt:v => v+' pillars',
+  mount(el, api){
+    el.classList.add('flush');
+    const {c, ctx} = makeCanvas(el); const P = pal();
+    const X = c.W*0.28, R = 13, GAP = 150, PW = 56, SPEED = 170;
+    let y = c.H/2, vy = 0, pipes = [], spawn = 0, score = 0, running = false, over = false, bob = 0;
+    function flap(){ if(over) return; running = true; vy = -310; api.beep(520, .05); }
+    function die(){ if(over) return; over = true; api.beep(110, .4); api.end(score); }
+    api.loop(dt => {
+      if(!running){ bob += dt; y = c.H/2 + Math.sin(bob*4)*8; }
+      else if(!over){
+        vy += 900*dt; y += vy*dt; spawn -= dt;
+        if(spawn <= 0){ spawn = 1.5; pipes.push({x:c.W, gy:60 + Math.random()*(c.H - 120 - GAP), passed:false}); }
+        for(const p of pipes){
+          p.x -= SPEED*dt;
+          if(!p.passed && p.x + PW < X){ p.passed = true; score++; api.beep(780, .06); }
+          if(X + R > p.x && X - R < p.x + PW && (y - R < p.gy || y + R > p.gy + GAP)) die();
+        }
+        pipes = pipes.filter(p => p.x > -PW);
+        if(y + R > c.H || y - R < 0) die();
+      }
+      ctx.clearRect(0, 0, c.W, c.H);
+      ctx.fillStyle = P.teal; ctx.strokeStyle = P.ink; ctx.lineWidth = 2.5;
+      for(const p of pipes){
+        ctx.fillRect(p.x, -4, PW, p.gy + 4); ctx.strokeRect(p.x, -4, PW, p.gy + 4);
+        ctx.fillRect(p.x, p.gy + GAP, PW, c.H); ctx.strokeRect(p.x, p.gy + GAP, PW, c.H);
+      }
+      ctx.save(); ctx.translate(X, y); ctx.rotate(clamp(vy/600, -0.5, 0.8));
+      ctx.fillStyle = P.yellow; ctx.beginPath(); ctx.arc(0, 0, R, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#1f1b16'; ctx.beginPath(); ctx.arc(5, -3, 2.5, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = P.orange; ctx.beginPath(); ctx.moveTo(R - 2, -2); ctx.lineTo(R + 8, 1); ctx.lineTo(R - 2, 5); ctx.fill();
+      ctx.restore();
+      txt(ctx, score, 16, 40, P.ink, 28, 800, 'left');
+      if(!running) txt(ctx, 'Tap or press Space to flap', c.W/2, c.H/2 - 50, P.ink);
+    });
+    api.on(c, 'pointerdown', flap);
+    api.on(window, 'keydown', e => { if((e.code === 'Space' || e.code === 'ArrowUp') && !e.repeat && !(e.target.closest && e.target.closest('button,a,input'))){ e.preventDefault(); flap(); } });
+  }
+});
+
+/* ---------- Hop Runner (new) ---------- */
+game({
+  id:'hop-runner', cat:'arcade', isNew:true, title:'Hop Runner', icon:'🏃', color:'var(--orange)',
+  blurb:'Jump the cactus. Run forever.', how:'Press Space, Up, or tap to jump over the cacti. The run speeds up over time, up to a top speed.',
+  fmt:v => v+' m',
+  mount(el, api){
+    el.classList.add('flush');
+    const {c, ctx} = makeCanvas(el); const P = pal();
+    const gy = c.H - 60, pw = 34, ph = 40, px = 60;
+    let y = 0, vy = 0, obs = [], speed = 320, dist = 0, running = false, over = false, leg = 0, nextGap = c.W*0.5;
+    const clouds = Array.from({length:4}, () => ({x:Math.random()*c.W, y:40 + Math.random()*120, s:0.2 + Math.random()*0.3}));
+    function jump(){ if(over) return; running = true; if(y <= 0){ vy = 720; api.beep(520, .05); } }
+    function addObs(){
+      const n = 1 + rand(speed > 480 ? 3 : speed > 380 ? 2 : 1), parts = []; let w = 0;
+      for(let i=0;i<n;i++){ const pw2 = 16 + rand(7), h = 30 + rand(27); parts.push({dx:w, w:pw2, h}); w += pw2 + 4; }
+      obs.push({x:c.W + 10, w:w - 4, parts});
+    }
+    api.loop(dt => {
+      if(running && !over){
+        speed = Math.min(640, speed + 8*dt); dist += speed*dt/30; leg += dt*speed/40;
+        vy -= 2300*dt; y += vy*dt; if(y < 0){ y = 0; vy = 0; }
+        for(const o of obs) o.x -= speed*dt;
+        obs = obs.filter(o => o.x + o.w > -10);
+        const lastEnd = obs.length ? obs[obs.length-1].x + obs[obs.length-1].w : -Infinity;
+        if(c.W - lastEnd >= nextGap){ addObs(); nextGap = speed*(0.85 + Math.random()*0.8) + 140; }
+        const top = gy - y - ph;
+        for(const o of obs) for(const p of o.parts){
+          const ox = o.x + p.dx;
+          if(px + pw - 6 > ox && px + 6 < ox + p.w && gy - y - 4 > gy - p.h && top < gy){ over = true; api.beep(110, .4); api.end(Math.floor(dist)); }
+        }
+        for(const cl of clouds){ cl.x -= speed*cl.s*dt; if(cl.x < -60){ cl.x = c.W + 40; cl.y = 40 + Math.random()*120; } }
+      }
+      ctx.clearRect(0, 0, c.W, c.H);
+      ctx.fillStyle = P.line; for(const cl of clouds){ ctx.beginPath(); ctx.ellipse(cl.x, cl.y, 30, 10, 0, 0, Math.PI*2); ctx.fill(); }
+      ctx.fillStyle = P.ink; ctx.fillRect(0, gy, c.W, 2);
+      ctx.fillStyle = P.green;
+      for(const o of obs) for(const p of o.parts){
+        const ox = o.x + p.dx; ctx.fillRect(ox, gy - p.h, p.w, p.h);
+        ctx.fillRect(ox - 5, gy - p.h*0.65, 5, 10); ctx.fillRect(ox + p.w, gy - p.h*0.5, 5, 10);
+      }
+      const top = gy - y - ph;
+      ctx.fillStyle = P.blue; ctx.beginPath(); ctx.roundRect ? ctx.roundRect(px, top, pw, ph - 8, 8) : ctx.rect(px, top, pw, ph - 8); ctx.fill();
+      ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(px + pw - 9, top + 10, 4, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = '#111'; ctx.beginPath(); ctx.arc(px + pw - 8, top + 10, 2, 0, Math.PI*2); ctx.fill();
+      ctx.strokeStyle = P.ink; ctx.lineWidth = 3; ctx.lineCap = 'round';
+      const sw = y > 0 ? 0 : Math.sin(leg)*5;
+      ctx.beginPath(); ctx.moveTo(px + 10, top + ph - 8); ctx.lineTo(px + 10 + sw, top + ph); ctx.moveTo(px + pw - 10, top + ph - 8); ctx.lineTo(px + pw - 10 - sw, top + ph); ctx.stroke();
+      txt(ctx, Math.floor(dist) + ' m', 16, 40, P.ink, 28, 800, 'left');
+      if(!running) txt(ctx, 'Press Space or tap to jump', c.W/2, c.H/2 - 60, P.ink);
+    });
+    api.on(c, 'pointerdown', jump);
+    api.on(window, 'keydown', e => { if((e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') && !(e.target.closest && e.target.closest('button,a,input'))){ e.preventDefault(); jump(); } });
+  }
+});
+
+/* ---------- Brick Breaker (new) ---------- */
+game({
+  id:'brick-breaker', cat:'arcade', isNew:true, title:'Brick Breaker', icon:'🧨', color:'var(--blue)',
+  blurb:'Bounce the ball and smash every brick.', how:'Move the paddle with your mouse, finger, or arrow keys. Click or press Space to launch. Clear the wall for a new, faster wave. 3 lives.',
+  fmt:v => v+' bricks',
+  mount(el, api){
+    el.classList.add('flush');
+    const {c, ctx} = makeCanvas(el); const P = pal();
+    const pw = c.W < 500 ? 72 : 96, ph = 12, py = c.H - 34, br = 7;
+    const cols = clamp(Math.floor((c.W - 20)/64), 5, 10), rows = 5, gap = 6, bw = (c.W - 20 - (cols - 1)*gap)/cols, bh = 18, top = 56;
+    const HUES = [P.red, P.orange, P.yellow, P.green, P.sky];
+    let px = c.W/2, tx = px, ball = {x:0, y:0, vx:0, vy:0}, stuck = true, speed = 320, lives = 3, score = 0, wave = 1, over = false, bricks = [];
+    const keys = {}; api.on(window, 'blur', () => { for(const k in keys) keys[k] = false; });
+    function build(){ bricks = []; for(let r=0;r<rows;r++) for(let k=0;k<cols;k++) bricks.push({x:10 + k*(bw + gap), y:top + r*(bh + gap), alive:true, row:r}); }
+    function reset(){ stuck = true; ball.x = px; ball.y = py - br - 1; }
+    function launch(){ if(over || !stuck) return; stuck = false; const a = -Math.PI/2 + (Math.random() - .5)*0.6; ball.vx = Math.cos(a)*speed; ball.vy = Math.sin(a)*speed; }
+    function norm(){ const m = Math.hypot(ball.vx, ball.vy) || 1; ball.vx = ball.vx/m*speed; ball.vy = ball.vy/m*speed;
+      if(Math.abs(ball.vy) < speed*0.3){ ball.vy = (ball.vy < 0 ? -1 : 1)*speed*0.3; ball.vx = (ball.vx < 0 ? -1 : 1)*Math.sqrt(speed*speed - ball.vy*ball.vy); } }
+    build(); reset();
+    api.on(c, 'pointermove', e => { tx = ptr(c, e).x; });
+    api.on(c, 'pointerdown', e => { tx = ptr(c, e).x; launch(); });
+    api.on(window, 'keydown', e => {
+      if(e.target.closest && e.target.closest('button,a,input')) return;
+      if(e.key === 'ArrowLeft') keys.l = true; if(e.key === 'ArrowRight') keys.r = true;
+      if(e.code === 'Space' || e.key === 'ArrowUp') launch();
+    });
+    api.on(window, 'keyup', e => { if(e.key === 'ArrowLeft') keys.l = false; if(e.key === 'ArrowRight') keys.r = false; });
+    api.loop(dt => {
+      if(!over){
+        if(keys.l) tx -= 520*dt; if(keys.r) tx += 520*dt;
+        tx = clamp(tx, pw/2, c.W - pw/2); px += (tx - px)*Math.min(1, dt*20);
+      }
+      if(stuck){ ball.x = px; ball.y = py - br - 1; }
+      else if(!over){
+        const N = 4;
+        for(let s=0;s<N;s++){
+          ball.x += ball.vx*dt/N; ball.y += ball.vy*dt/N;
+          if(ball.x < br){ ball.x = br; ball.vx = Math.abs(ball.vx); }
+          if(ball.x > c.W - br){ ball.x = c.W - br; ball.vx = -Math.abs(ball.vx); }
+          if(ball.y < br){ ball.y = br; ball.vy = Math.abs(ball.vy); }
+          if(ball.vy > 0 && ball.y + br >= py && ball.y + br <= py + ph + 10 && ball.x >= px - pw/2 - br && ball.x <= px + pw/2 + br){
+            const off = clamp((ball.x - px)/(pw/2), -1, 1), a = off*1.05;
+            ball.vx = Math.sin(a)*speed; ball.vy = -Math.cos(a)*speed; ball.y = py - br; api.beep(400, .03);
+          }
+          for(const b of bricks){
+            if(!b.alive) continue;
+            const qx = clamp(ball.x, b.x, b.x + bw), qy = clamp(ball.y, b.y, b.y + bh);
+            if((ball.x - qx)**2 + (ball.y - qy)**2 <= br*br){
+              b.alive = false; score++; speed = Math.min(560, speed + 3);
+              const ovx = Math.min(ball.x + br - b.x, b.x + bw - (ball.x - br)), ovy = Math.min(ball.y + br - b.y, b.y + bh - (ball.y - br));
+              if(ovx < ovy) ball.vx = (ball.x < b.x + bw/2 ? -1 : 1)*Math.abs(ball.vx);
+              else ball.vy = (ball.y < b.y + bh/2 ? -1 : 1)*Math.abs(ball.vy);
+              norm(); api.beep(500 + b.row*70, .03); break;
+            }
+          }
+          if(ball.y - br > c.H){
+            lives--; api.beep(150, .3);
+            if(lives <= 0){ over = true; api.end(score, `Reached wave ${wave}`); } else reset();
+            break;
+          }
+        }
+        if(!over && bricks.every(b => !b.alive)){ wave++; speed = Math.min(560, 320 + wave*25); build(); reset(); }
+      }
+      ctx.clearRect(0, 0, c.W, c.H);
+      for(const b of bricks) if(b.alive){ ctx.fillStyle = HUES[b.row]; ctx.fillRect(b.x, b.y, bw, bh); }
+      ctx.fillStyle = P.ink; ctx.fillRect(px - pw/2, py, pw, ph);
+      ctx.fillStyle = P.ink; ctx.beginPath(); ctx.arc(ball.x, ball.y, br, 0, Math.PI*2); ctx.fill();
+      txt(ctx, score, 16, 38, P.ink, 26, 800, 'left');
+      txt(ctx, `Wave ${wave}  ${'♥'.repeat(Math.max(0, lives))}`, c.W - 16, 36, P.red, 18, 700, 'right');
+      if(stuck && !over) txt(ctx, 'Click or press Space to launch', c.W/2, c.H*0.62, P.ink, 18);
+    });
+  }
+});
+
+/* ---------- Paddle Duel (new) ---------- */
+game({
+  id:'paddle-duel', cat:'arcade', isNew:true, title:'Paddle Duel', icon:'🏓', color:'var(--teal)',
+  blurb:'Beat the computer at paddle tennis.', how:'Move your paddle (left) with your mouse, finger, or the arrow keys. Score as many points as you can before the computer gets 5. It gets sharper as you score.',
+  fmt:v => v+' points',
+  mount(el, api){
+    el.classList.add('flush');
+    const {c, ctx} = makeCanvas(el); const P = pal();
+    const ph = Math.round(c.H*0.18), pw = 12, br = 8, lx = 20, rx = c.W - 20 - pw;
+    let py = c.H/2, ty = py, cy = c.H/2, ball = {x:c.W/2, y:c.H/2, vx:0, vy:0}, speed = 330, you = 0, cpu = 0, serveT = 0.8, dirServe = 1, running = false, over = false, aimOff = 0;
+    const keys = {}; api.on(window, 'blur', () => { for(const k in keys) keys[k] = false; });
+    function serve(){ speed = 330; const a = (Math.random() - .5)*0.8; ball.x = c.W/2; ball.y = c.H/2; ball.vx = Math.cos(a)*speed*dirServe; ball.vy = Math.sin(a)*speed; }
+    api.on(c, 'pointermove', e => { ty = ptr(c, e).y; });
+    api.on(c, 'pointerdown', e => { ty = ptr(c, e).y; if(!over) running = true; });
+    api.on(window, 'keydown', e => {
+      if(e.target.closest && e.target.closest('button,a,input')) return;
+      if(e.ctrlKey || e.metaKey || e.altKey) return;
+      if(e.key === 'ArrowUp' || e.code === 'KeyW'){ keys.u = true; if(!over) running = true; }
+      if(e.key === 'ArrowDown' || e.code === 'KeyS'){ keys.d = true; if(!over) running = true; }
+      if(e.code === 'Space' && !over) running = true;
+    });
+    api.on(window, 'keyup', e => { if(e.key === 'ArrowUp' || e.code === 'KeyW') keys.u = false; if(e.key === 'ArrowDown' || e.code === 'KeyS') keys.d = false; });
+    api.loop(dt => {
+      if(keys.u) ty -= 480*dt; if(keys.d) ty += 480*dt;
+      ty = clamp(ty, ph/2, c.H - ph/2); py += (ty - py)*Math.min(1, dt*18);
+      if(running && !over){
+        if(serveT > 0){ ball.x = c.W/2; ball.y = c.H/2; serveT -= dt; if(serveT <= 0) serve(); }
+        else {
+          const N = 3;
+          for(let s=0;s<N;s++){
+            ball.x += ball.vx*dt/N; ball.y += ball.vy*dt/N;
+            if(ball.y < br){ ball.y = br; ball.vy = Math.abs(ball.vy); }
+            if(ball.y > c.H - br){ ball.y = c.H - br; ball.vy = -Math.abs(ball.vy); }
+            if(ball.vx < 0 && ball.x - br <= lx + pw && ball.x - br >= lx - 14 && Math.abs(ball.y - py) <= ph/2 + br){
+              const a = clamp((ball.y - py)/(ph/2), -1, 1)*0.9; speed = Math.min(720, speed + 20);
+              ball.vx = Math.cos(a)*speed; ball.vy = Math.sin(a)*speed; ball.x = lx + pw + br; api.beep(500, .03);
+              aimOff = (Math.random() - .5)*ph*0.9;
+            }
+            if(ball.vx > 0 && ball.x + br >= rx && ball.x + br <= rx + pw + 14 && Math.abs(ball.y - cy) <= ph/2 + br){
+              const a = clamp((ball.y - cy)/(ph/2), -1, 1)*0.9; speed = Math.min(720, speed + 20);
+              ball.vx = -Math.cos(a)*speed; ball.vy = Math.sin(a)*speed; ball.x = rx - br; api.beep(420, .03);
+            }
+          }
+          if(ball.x < -br){ cpu++; dirServe = -1; serveT = 0.9; api.beep(150, .25); if(cpu >= 5){ over = true; api.end(you, `You ${you} – CPU ${cpu}`); } }
+          else if(ball.x > c.W + br){ you++; dirServe = 1; serveT = 0.9; api.beep(880, .12); }
+        }
+        const cpuMax = Math.min(470, 240 + you*22);
+        const target = ball.vx > 0 && serveT <= 0 ? ball.y + aimOff : c.H/2;
+        cy += clamp(target - cy, -cpuMax*dt, cpuMax*dt); cy = clamp(cy, ph/2, c.H - ph/2);
+      }
+      ctx.clearRect(0, 0, c.W, c.H);
+      ctx.strokeStyle = P.line; ctx.lineWidth = 3; ctx.setLineDash([10, 12]); ctx.beginPath(); ctx.moveTo(c.W/2, 0); ctx.lineTo(c.W/2, c.H); ctx.stroke(); ctx.setLineDash([]);
+      txt(ctx, you, c.W/2 - 40, 56, P.ink, 40, 800);
+      txt(ctx, cpu, c.W/2 + 40, 56, P.muted, 40, 800);
+      ctx.fillStyle = P.blue; ctx.fillRect(lx, py - ph/2, pw, ph);
+      ctx.fillStyle = P.red; ctx.fillRect(rx, cy - ph/2, pw, ph);
+      ctx.fillStyle = P.ink; ctx.beginPath(); ctx.arc(ball.x, ball.y, br, 0, Math.PI*2); ctx.fill();
+      if(!running) txt(ctx, 'Click or press Space to start', c.W/2, c.H/2 + 50, P.ink, 18);
+    });
+  }
+});
+
+/* ---------- Tile Merge ---------- */
+game({
+  id:'tile-merge', cat:'puzzle', title:'Tile Merge', icon:'🔷', color:'var(--orange)',
+  blurb:'Slide and merge matching numbers.', how:'Use the arrow keys, WASD, or swipe on the board to slide every tile. Two matching tiles merge into one. You get one undo per move.',
+  fmt:v => v+' pts',
+  mount(el, api){
+    el.classList.add('tight');
+    el.innerHTML = '<div class="hud"><span>Score <b class="c">0</b></span><span>Best tile <b class="bt">2</b></span><button class="btn sm undo" type="button" disabled>↶ Undo</button></div><div class="merge"></div>';
+    const grid = $('.merge', el), cEl = $('.c', el), btEl = $('.bt', el), undoB = $('.undo', el);
+    let b = Array(16).fill(0), score = 0, over = false, prev = null, fresh = -1;
+    const cells = b.map(() => { const d = document.createElement('div'); grid.appendChild(d); return d; });
+    function add(){ const empty = b.map((v, i) => v ? -1 : i).filter(i => i >= 0); if(empty.length){ fresh = empty[rand(empty.length)]; b[fresh] = Math.random() < 0.9 ? 2 : 4; } }
+    function render(){
+      b.forEach((v, i) => {
+        const d = cells[i]; d.textContent = v || '';
+        d.style.background = v ? `hsl(${(Math.log2(v)*32 + 20) % 360} 80% 72%)` : '';
+        d.style.color = v ? '#1f1b16' : '';
+        d.className = (v >= 1024 ? 'big' : '') + (i === fresh ? ' n' : '');
+      });
+      cEl.textContent = score; btEl.textContent = Math.max(...b); undoB.disabled = !prev || over;
+    }
+    function slide(line){
+      const a = line.filter(v => v), out = []; let gained = 0;
+      for(let i=0;i<a.length;i++){ if(a[i] === a[i+1]){ out.push(a[i]*2); gained += a[i]*2; i++; } else out.push(a[i]); }
+      while(out.length < 4) out.push(0);
+      return {out, gained};
+    }
+    function canMove(){
+      for(let i=0;i<16;i++){ if(!b[i]) return true; if(i%4 < 3 && b[i] === b[i+1]) return true; if(i < 12 && b[i] === b[i+4]) return true; }
+      return false;
+    }
+    function move(d){
+      if(over) return;
+      let moved = false, gained = 0; const nb = b.slice();
+      for(let k=0;k<4;k++){
+        const idx = [0,1,2,3].map(i => d === 'L' ? k*4 + i : d === 'R' ? k*4 + 3 - i : d === 'U' ? i*4 + k : (3 - i)*4 + k);
+        const res = slide(idx.map(i => b[i])); gained += res.gained;
+        idx.forEach((i, j) => { if(nb[i] !== res.out[j]) moved = true; nb[i] = res.out[j]; });
+      }
+      if(!moved) return;
+      prev = {b:b.slice(), score};
+      b = nb; score += gained; if(gained) api.beep(300 + Math.min(900, gained), .05);
+      add(); render();
+      if(!canMove()){ over = true; render(); api.after(() => api.end(score, `Best tile ${Math.max(...b)}`), 500); }
+    }
+    api.on(undoB, 'click', () => { if(!prev || over) return; b = prev.b; score = prev.score; prev = null; fresh = -1; render(); });
+    const KEYS = {ArrowUp:'U', ArrowDown:'D', ArrowLeft:'L', ArrowRight:'R', KeyW:'U', KeyS:'D', KeyA:'L', KeyD:'R'};
+    api.on(window, 'keydown', e => { const d = KEYS[e.code]; if(d && !e.ctrlKey && !e.metaKey && !e.altKey && !(e.target.closest && e.target.closest('input'))){ e.preventDefault(); move(d); } });
+    onSwipe(api, grid, move);
+    add(); add(); render();
+  }
+});
+
+/* ---------- Sweeper ---------- */
+game({
+  id:'sweeper', cat:'puzzle', title:'Sweeper', icon:'💣', color:'var(--sky)',
+  blurb:'Clear the field without hitting a mine.', how:'Click a square to open it. A number shows how many mines touch that square directly: above, below, left, or right (not diagonal). Right-click, long-press, or use Flag mode to mark mines. Click an opened number whose flags are all placed to open the rest around it.',
+  modes:[{id:'easy', label:'Easy'}, {id:'medium', label:'Medium', def:true}, {id:'hard', label:'Hard'}],
+  lower:true, fmt:v => v+' s',
+  mount(el, api, mode){
+    const cfg = {easy:{N:9, M:12}, medium:{N:12, M:24}, hard:{N:14, M:36}}[mode] || {N:12, M:24};
+    const N = cfg.N, M = cfg.M;
+    el.innerHTML = `<div class="hud"><span>Mines <b class="c">${M}</b></span><span>Time <b class="t">0</b></span><button class="btn sm flagbtn" type="button" aria-pressed="false">🚩 Flag mode</button></div><div class="tiles mines"></div>`;
+    const grid = $('.mines', el), cEl = $('.c', el), tEl = $('.t', el), fb = $('.flagbtn', el);
+    gridN(grid, N); grid.style.fontSize = clamp(Math.round(240/N), 11, 22) + 'px';
+    const NUMC = ['', 'var(--blue)', 'var(--green)', 'var(--red)', 'var(--purple)'];
+    let cells = [], first = true, over = false, flagMode = false, start = 0, opened = 0, flags = 0;
+    const nbrs = i => { const x = i%N, y = Math.floor(i/N), out = []; if(y > 0) out.push(i - N); if(y < N-1) out.push(i + N); if(x > 0) out.push(i - 1); if(x < N-1) out.push(i + 1); return out; };
+    for(let i=0;i<N*N;i++){
+      const btn = document.createElement('button'); btn.type = 'button'; btn.setAttribute('aria-label', `Square ${i%N + 1}, ${Math.floor(i/N) + 1}`);
+      const cell = {mine:false, adj:0, open:false, flag:false, btn}; cells.push(cell);
+      let lp = null, longPressed = false;
+      const cancelLp = () => { if(lp){ api.cancel(lp); lp = null; } };
+      api.on(btn, 'pointerdown', e => { longPressed = false; cancelLp(); if(e.pointerType !== 'mouse'){ lp = api.after(() => { lp = null; longPressed = true; flag(i); }, 420); } });
+      api.on(btn, 'pointerup', cancelLp); api.on(btn, 'pointerleave', cancelLp); api.on(btn, 'pointercancel', cancelLp);
+      api.on(btn, 'contextmenu', e => {
+        e.preventDefault();
+        if(longPressed) return;               /* the long-press timer already flagged it */
+        const touch = lp !== null; cancelLp(); /* touch long-press menu arrived first */
+        if(touch) longPressed = true;
+        flag(i);
+      });
+      api.on(btn, 'click', () => { if(longPressed){ longPressed = false; return; } flagMode ? flag(i) : open(i); });
+      grid.appendChild(btn);
+    }
+    function lay(safe){
+      const banned = new Set([safe, ...nbrs(safe)]); let placed = 0;
+      while(placed < M){ const r = rand(N*N); if(!banned.has(r) && !cells[r].mine){ cells[r].mine = true; placed++; } }
+      cells.forEach((c, i) => c.adj = nbrs(i).filter(j => cells[j].mine).length);
+    }
+    function paint(c){
+      const b = c.btn;
+      if(c.open){ b.classList.add('open'); b.textContent = c.mine ? '💣' : (c.adj || ''); b.style.color = NUMC[c.adj] || ''; }
+      else b.textContent = c.flag ? '🚩' : '';
+    }
+    function flag(i){
+      const c = cells[i]; if(over || c.open) return;
+      c.flag = !c.flag; flags += c.flag ? 1 : -1; cEl.textContent = M - flags; paint(c);
+    }
+    function open(i){
+      const c = cells[i]; if(over || c.flag) return;
+      if(c.open){
+        if(c.adj > 0){ const ns = nbrs(i); if(ns.filter(j => cells[j].flag).length === c.adj) ns.forEach(j => { if(!cells[j].open) open(j); }); }
+        return;
+      }
+      if(first){ first = false; lay(i); start = Date.now(); api.every(() => { if(!over) tEl.textContent = Math.floor((Date.now() - start)/1000); }, 250); }
+      if(c.mine){
+        over = true; api.beep(110, .5);
+        cells.forEach(x => { if(x.mine){ x.open = true; paint(x); } });
+        c.btn.classList.add('boom');
+        api.after(() => api.fail('Boom! 💥', 'You opened a mine.'), 700); return;
+      }
+      const stack = [i];
+      while(stack.length){
+        const k = stack.pop(), x = cells[k]; if(x.open || x.flag) continue;
+        x.open = true; opened++; paint(x);
+        if(x.adj === 0) nbrs(k).forEach(j => { if(!cells[j].open && !cells[j].mine) stack.push(j); });
+      }
+      api.beep(520, .03);
+      if(opened === N*N - M){ over = true; cells.forEach(x => { if(x.mine && !x.flag){ x.flag = true; paint(x); } }); api.end(Math.max(1, Math.round((Date.now() - start)/1000))); }
+    }
+    api.on(fb, 'click', () => { flagMode = !flagMode; fb.setAttribute('aria-pressed', String(flagMode)); });
+  }
+});
+
+/* ---------- Number Rush ---------- */
+game({
+  id:'number-rush', cat:'puzzle', title:'Number Rush', icon:'🔢', color:'var(--orange)',
+  blurb:'Tap numbers in order. One wrong tap and you’re out.', how:'Tap the numbers in order starting at 1. Each round adds one more number, starting with 5. You have 60 seconds. Tapping the wrong number ends the game.',
+  fmt:v => v+' taps',
+  mount(el, api){
+    el.innerHTML = '<div class="hud"><span>Time <b class="t">60</b></span><span>Round <b class="r">1</b></span><span>Score <b class="c">0</b></span></div><div class="tiles nums"></div><p class="msg">Tap 1 to start the clock.</p>';
+    const grid = $('.nums', el), tEl = $('.t', el), rEl = $('.r', el), cEl = $('.c', el), msg = $('.msg', el);
+    gridN(grid, 5);
+    const cells = Array.from({length:25}, () => { const b = document.createElement('button'); b.type = 'button'; grid.appendChild(b); return b; });
+    let round = 1, next = 1, count = 5, score = 0, start = 0, over = false, busy = false;
+    function deal(){
+      count = Math.min(25, 4 + round); next = 1; busy = false;
+      const slots = shuffle([...Array(25).keys()]).slice(0, count);
+      cells.forEach(b => { b.textContent = ''; b.className = 'empty'; b.disabled = true; b.dataset.n = ''; b.removeAttribute('aria-label'); });
+      slots.forEach((s, i) => { const b = cells[s]; b.textContent = i + 1; b.dataset.n = i + 1; b.className = ''; b.disabled = false; b.setAttribute('aria-label', 'Number ' + (i+1)); });
+      rEl.textContent = round;
+    }
+    function tick(){
+      if(over) return;
+      const left = 60 - (Date.now() - start)/1000; tEl.textContent = Math.max(0, Math.ceil(left));
+      if(left <= 0){ over = true; api.end(score, `Time’s up! You reached round ${round}.`); }
+    }
+    cells.forEach(b => api.on(b, 'pointerdown', e => {
+      e.preventDefault();
+      if(over || busy || !b.dataset.n || b.disabled) return;
+      const n = +b.dataset.n;
+      if(n !== next){
+        over = true; b.classList.add('wrong'); api.beep(110, .4); msg.textContent = `Wrong! You tapped ${n}, but ${next} was next.`;
+        api.after(() => api.end(score, `Wrong number: tapped ${n} instead of ${next}`), 700); return;
+      }
+      if(!start){ start = Date.now(); msg.textContent = 'Go go go!'; api.every(tick, 100); }
+      b.classList.add('done'); b.disabled = true; next++; score++; cEl.textContent = score; api.beep(480 + n*18, .04);
+      if(next > count){ busy = true; round++; api.after(deal, 220); }
+    }));
+    deal();
+  }
+});
+
+/* ---------- Odd One Out ---------- */
+game({
+  id:'odd-one-out', cat:'puzzle', title:'Odd One Out', icon:'🎨', color:'var(--teal)',
+  blurb:'Spot the tile that’s a different shade.', how:'Find the tile with a slightly different color. You have 30 seconds. Wrong picks cost 3 seconds.',
+  fmt:v => v+' found',
+  mount(el, api){
+    el.innerHTML = '<div class="hud"><span>Time <b class="t">30</b></span><span>Found <b class="c">0</b></span></div><div class="tiles"></div><p class="msg">The clock starts on your first tap.</p>';
+    const grid = $('.tiles', el), tEl = $('.t', el), cEl = $('.c', el), msg = $('.msg', el);
+    let level = 0, timeLeft = 30, started = false, over = false, lastTick = 0;
+    function board(){
+      const n = Math.min(7, 2 + Math.floor(level/3));
+      const hue = rand(360), sat = 55 + rand(25), light = 40 + rand(20), d = Math.max(4, 22 - level*0.9), odd = rand(n*n);
+      gridN(grid, n); grid.innerHTML = '';
+      for(let i=0;i<n*n;i++){
+        const b = document.createElement('button'); b.type = 'button';
+        b.style.background = `hsl(${hue} ${sat}% ${i === odd ? light + d : light}%)`;
+        b.setAttribute('aria-label', 'Tile ' + (i+1));
+        b.addEventListener('click', () => pick(i === odd));
+        grid.appendChild(b);
+      }
+    }
+    function pick(ok){
+      if(over) return;
+      if(!started){ started = true; lastTick = Date.now(); api.every(tick, 100); msg.textContent = ''; }
+      if(ok){ level++; cEl.textContent = level; api.beep(600 + level*10, .04); board(); }
+      else { timeLeft = Math.max(0, timeLeft - 3); msg.textContent = '−3 seconds'; api.beep(150, .15); grid.classList.remove('shake'); void grid.offsetWidth; grid.classList.add('shake'); }
+    }
+    function tick(){
+      if(over) return;
+      const now = Date.now(); timeLeft -= (now - lastTick)/1000; lastTick = now;
+      tEl.textContent = Math.max(0, Math.ceil(timeLeft));
+      if(timeLeft <= 0){ over = true; api.end(level); }
+    }
+    board();
+  }
+});
+
+/* ---------- Higher or Lower ---------- */
+game({
+  id:'higher-lower', cat:'puzzle', title:'Higher or Lower', icon:'🃏', color:'var(--lime)',
+  blurb:'Guess if the next number is higher.', how:'Numbers go from 1 to 100. Guess whether the next one is higher or lower. A tie counts as a win. Arrow keys work too.',
+  fmt:v => v+' in a row',
+  mount(el, api){
+    el.innerHTML = '<div class="hud"><span>Streak <b class="c">0</b></span></div><div class="hlcard" aria-live="polite"></div><div class="hlrow"><button class="btn hi" type="button">▲ Higher</button><button class="btn lo" type="button">▼ Lower</button></div><p class="msg"></p>';
+    const card = $('.hlcard', el), cEl = $('.c', el), msg = $('.msg', el);
+    let cur = 1 + rand(100), streak = 0, busy = false; card.textContent = cur;
+    function guess(up){
+      if(busy) return;
+      const n = 1 + rand(100), ok = n === cur || (up ? n > cur : n < cur);
+      card.textContent = n; msg.textContent = `${cur} → ${n}`;
+      if(ok){ streak++; cEl.textContent = streak; api.beep(660, .1); cur = n; }
+      else { busy = true; api.beep(110, .4); api.after(() => api.end(streak, `${cur} → ${n}`), 600); }
+    }
+    api.on($('.hi', el), 'click', () => guess(true));
+    api.on($('.lo', el), 'click', () => guess(false));
+    api.on(window, 'keydown', e => {
+      if((e.target.closest && e.target.closest('input')) || e.ctrlKey || e.metaKey || e.altKey) return;
+      if(e.key === 'ArrowUp'){ e.preventDefault(); guess(true); }
+      if(e.key === 'ArrowDown'){ e.preventDefault(); guess(false); }
+    });
+  }
+});
+
+/* ---------- Echo Pads ---------- */
+game({
+  id:'echo-pads', cat:'memory', title:'Echo Pads', icon:'🎵', color:'var(--purple)',
+  blurb:'Repeat the light-and-sound pattern.', how:'Watch the pads light up, then tap them back in the same order (or press keys 1 to 4). It gets one step longer each round.',
+  fmt:v => 'round '+v,
+  mount(el, api){
+    const cols = ['var(--red)', 'var(--blue)', 'var(--yellow)', 'var(--green)'], tones = [330, 392, 494, 587];
+    el.innerHTML = '<div class="hud"><span>Round <b class="c">0</b></span></div><div class="pads"></div><button class="btn primary go" type="button">Start</button>';
+    const padsEl = $('.pads', el), cEl = $('.c', el), go = $('.go', el);
+    let seq = [], idx = 0, accept = false, over = false;
+    const pads = cols.map((c, i) => {
+      const b = document.createElement('button'); b.type = 'button'; b.style.background = c; b.textContent = i + 1; b.setAttribute('aria-label', 'Pad ' + (i+1)); b.disabled = true;
+      api.on(b, 'pointerdown', () => press(i)); padsEl.appendChild(b); return b;
+    });
+    function flash(i, ms=300){ pads[i].classList.add('lit'); api.beep(tones[i], ms/1000); api.after(() => pads[i].classList.remove('lit'), ms); }
+    function next(){
+      accept = false; pads.forEach(p => p.disabled = true);
+      seq.push(rand(4)); idx = 0; cEl.textContent = seq.length;
+      const gap = Math.max(280, 560 - seq.length*20);
+      seq.forEach((p, k) => api.after(() => flash(p, gap*0.6), 500 + k*gap));
+      api.after(() => { accept = true; pads.forEach(p => p.disabled = false); }, 500 + seq.length*gap);
+    }
+    function press(i){
+      if(!accept || over) return;
+      flash(i, 180);
+      if(i !== seq[idx]){ accept = false; over = true; api.beep(120, .4); pads.forEach(p => p.disabled = true); api.after(() => api.end(seq.length - 1), 500); return; }
+      idx++;
+      if(idx === seq.length){ accept = false; api.after(next, 700); }
+    }
+    api.on(window, 'keydown', e => { if(/^[1-4]$/.test(e.key) && !e.repeat && !e.ctrlKey && !e.metaKey && !e.altKey) press(+e.key - 1); });
+    api.on(go, 'click', () => { go.remove(); next(); });
+  }
+});
+
+/* ---------- Pair Up ---------- */
+game({
+  id:'pair-up', cat:'memory', title:'Pair Up', icon:'🧠', color:'var(--purple)',
+  blurb:'Flip cards and find every matching pair.', how:'Flip two cards at a time. Find all 8 pairs in as few moves as you can.',
+  lower:true, fmt:v => v+' moves',
+  mount(el, api){
+    el.innerHTML = '<div class="hud"><span>Moves <b class="c">0</b></span><span>Pairs <b class="p">0</b>/8</span><span>Time <b class="t">0</b></span></div><div class="tiles cards"></div>';
+    const grid = $('.cards', el), cEl = $('.c', el), pEl = $('.p', el), tEl = $('.t', el);
+    const faces = ['🍕','🚀','🐙','🌵','🎸','🍩','🦊','⚽'];
+    const deck = shuffle([...faces, ...faces]);
+    gridN(grid, 4);
+    let up = [], moves = 0, pairs = 0, busy = false, start = 0;
+    const btns = deck.map((f, i) => {
+      const b = document.createElement('button'); b.type = 'button'; b.setAttribute('aria-label', 'Card ' + (i+1));
+      api.on(b, 'click', () => {
+        if(busy || b.classList.contains('up') || b.classList.contains('got')) return;
+        if(!start){ start = Date.now(); api.every(() => { if(pairs < 8) tEl.textContent = Math.floor((Date.now() - start)/1000); }, 250); }
+        b.classList.add('up'); b.textContent = f; up.push(i);
+        if(up.length === 2){
+          moves++; cEl.textContent = moves;
+          const [a, z] = up; up = [];
+          if(deck[a] === deck[z]){
+            pairs++; pEl.textContent = pairs; api.beep(660, .1);
+            btns[a].classList.add('got'); btns[z].classList.add('got');
+            if(pairs === 8) api.after(() => api.end(moves, `${Math.floor((Date.now() - start)/1000)} seconds`), 400);
+          } else {
+            busy = true;
+            api.after(() => { [a, z].forEach(k => { btns[k].classList.remove('up'); btns[k].textContent = ''; }); busy = false; }, 750);
+          }
+        }
+      });
+      grid.appendChild(b); return b;
+    });
+  }
+});
+
+/* ---------- Type Sprint ---------- */
+const WORDS = 'the be to of and in that have it for not on with he as you do at this but his by from they we say her she or an will my one all would there their what so up out if about who get which go me when make can like time no just him know take people into year your good some could them see other than then now look only come its over think also back after use two how our work first well way even new want because any these give day most us great small house world water light music river apple green cloud paper happy quick jump dream ocean robot pixel smile tiger zebra rocket garden'.split(' ');
+game({
+  id:'type-sprint', cat:'word', typing:true, title:'Type Sprint', icon:'⌨️', color:'var(--sky)',
+  blurb:'Type as many words as you can.', how:'Type the highlighted word. Each letter turns green or red as you type it. Press Space to move to the next word. The timer starts on your first key.',
+  modes:[{id:'15', label:'15s'}, {id:'30', label:'30s', def:true}, {id:'60', label:'60s'}],
+  fmt:v => v+' WPM',
+  mount(el, api, mode){
+    const D = +mode || 30;
+    el.innerHTML = `<div class="hud"><span>Time <b class="t">${D}</b></span><span>WPM <b class="wpm">0</b></span><span>Accuracy <b class="a">–</b></span></div><div class="words"></div><input class="typein" id="typein" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" aria-label="Type here" placeholder="Start typing…">`;
+    const box = $('.words', el), inp = $('.typein', el), tEl = $('.t', el), wEl = $('.wpm', el), aEl = $('.a', el);
+    const list = Array.from({length:Math.ceil(D*4) + 20}, () => WORDS[rand(WORDS.length)]);
+    box.innerHTML = list.map(w => `<span class="w">${[...w].map(ch => `<span class="l">${ch}</span>`).join('')}</span>`).join('');
+    const wordEls = [...box.children];
+    let i = 0, chars = 0, good = 0, typedWords = 0, start = 0, over = false, lastTop = 0;
+    function paintCur(){
+      const w = wordEls[i], target = list[i], v = inp.value;
+      if(!w) return;
+      w.className = 'w cur';
+      $$('.l.x', w).forEach(x => x.remove());
+      const ls = $$('.l', w);
+      ls.forEach((l, k) => { l.className = 'l' + (k < v.length ? (v[k] === target[k] ? ' ok' : ' bad') : '') + (k === v.length ? ' caret' : ''); });
+      if(v.length > target.length){ for(const ch of v.slice(target.length)){ const s = document.createElement('span'); s.className = 'l x'; s.textContent = ch; w.appendChild(s); } }
+      w.classList.toggle('endcaret', v.length >= target.length);
+      if(w.offsetTop !== lastTop){ lastTop = w.offsetTop; box.scrollTop = Math.max(0, w.offsetTop - w.offsetHeight - 14); }
+    }
+    function stats(){
+      const mins = Math.max(1/60, (Date.now() - start)/60000);
+      wEl.textContent = Math.round(chars/5/mins);
+      aEl.textContent = typedWords ? Math.round(good/typedWords*100) + '%' : '–';
+    }
+    api.on(inp, 'input', () => {
+      if(over) return;
+      if(!start){ start = Date.now(); api.every(tick, 200); }
+      let v = inp.value;
+      if(v.includes(' ')){
+        const typed = v.split(' ')[0];
+        if(!typed){ inp.value = ''; paintCur(); return; }
+        const ok = typed === list[i];
+        $$('.l.x', wordEls[i]).forEach(x => x.remove());
+        $$('.l', wordEls[i]).forEach(l => l.className = 'l');
+        wordEls[i].className = 'w ' + (ok ? 'ok' : 'bad');
+        typedWords++; if(ok){ chars += list[i].length + 1; good++; }
+        i = Math.min(i + 1, wordEls.length - 1);
+        inp.value = '';
+        stats();
+      }
+      paintCur();
+    });
+    api.on(inp, 'paste', e => e.preventDefault());
+    function tick(){
+      if(over) return;
+      const left = D - (Date.now() - start)/1000; tEl.textContent = Math.max(0, Math.ceil(left)); stats();
+      if(left <= 0){
+        over = true; inp.disabled = true;
+        const wpm = Math.round(chars/5/(D/60));
+        api.end(wpm, `${good} correct words · accuracy ${typedWords ? Math.round(good/typedWords*100) : 0}%`);
+      }
+    }
+    paintCur();
+    inp.focus({preventScroll:true});
+  }
+});
+
+/* ---------- Five Letters (new) ---------- */
+const ANSWERS = 'apple beach brain bread brick chair chess cloud crane dance dream drink eagle earth fairy flame flute frost fruit ghost giant glass grape grass heart honey horse house jelly juice knife lemon light magic mango maple money month mouse music night ocean olive onion paint paper party peach pearl piano pilot pizza plant plate queen quiet radio river robot salad sheep shell shirt smile snake space spoon sport storm sugar table tiger toast tooth torch tower train truck water whale wheel world zebra candy cabin camel cliff coral crown daisy field globe lucky medal nurse orbit panda prize scarf skate sunny swing tulip vivid witch youth blaze charm climb crisp dwarf frame fresh guard happy image jolly kayak laser lunar noble opera pouch pride quest raven ruler solar sweet thumb vapor wagon yacht'.split(' ').filter(w => /^[a-z]{5}$/.test(w));
+game({
+  id:'five-letters', cat:'word', typing:true, isNew:true, title:'Five Letters', icon:'🔤', color:'var(--green)',
+  blurb:'Guess the hidden word in 6 tries.', how:'Type any 5-letter guess and press Enter. Green means right letter, right spot. Yellow means the letter is in the word but in another spot. Grey means it isn’t in the word.',
+  lower:true, fmt:v => v + (v === 1 ? ' guess' : ' guesses'),
+  mount(el, api){
+    el.classList.add('tight');
+    el.innerHTML = '<div class="fl-board"></div><div class="fl-kb"></div>';
+    const board = $('.fl-board', el), kb = $('.fl-kb', el);
+    const ans = ANSWERS[rand(ANSWERS.length)];
+    const rows = Array.from({length:6}, () => { const r = document.createElement('div'); r.className = 'fl-row'; for(let k=0;k<5;k++) r.appendChild(document.createElement('div')); board.appendChild(r); return r; });
+    const keyEls = {};
+    ['qwertyuiop', 'asdfghjkl', '+zxcvbnm-'].forEach(line => {
+      const row = document.createElement('div');
+      for(const ch of line){
+        const b = document.createElement('button'); b.type = 'button'; b.tabIndex = -1;
+        api.on(b, 'mousedown', e => e.preventDefault()); /* never take focus, so Space can't repeat a key */
+        if(ch === '+'){ b.textContent = 'Enter'; b.className = 'wide'; api.on(b, 'click', () => type('enter')); }
+        else if(ch === '-'){ b.textContent = '⌫'; b.className = 'wide'; b.setAttribute('aria-label', 'Delete'); api.on(b, 'click', () => type('back')); }
+        else { b.textContent = ch; keyEls[ch] = b; api.on(b, 'click', () => type(ch)); }
+        row.appendChild(b);
+      }
+      kb.appendChild(row);
+    });
+    let row = 0, cur = '', over = false, busy = false; const keyState = {};
+    let toastEl = null;
+    function toast(s){
+      if(toastEl) toastEl.remove();
+      const t = document.createElement('div'); t.className = 'toast'; t.textContent = s; el.appendChild(t); toastEl = t;
+      api.after(() => { if(toastEl === t){ t.remove(); toastEl = null; } }, 1300);
+    }
+    function paint(){ [...rows[row].children].forEach((d, k) => { d.textContent = cur[k] || ''; d.classList.toggle('filled', !!cur[k]); }); }
+    function evaluate(g){
+      const res = Array(5).fill('miss'), cnt = {};
+      for(let k=0;k<5;k++){ if(g[k] === ans[k]) res[k] = 'hit'; else cnt[ans[k]] = (cnt[ans[k]] || 0) + 1; }
+      for(let k=0;k<5;k++){ if(res[k] !== 'hit' && cnt[g[k]] > 0){ res[k] = 'near'; cnt[g[k]]--; } }
+      return res;
+    }
+    const RANK = {miss:1, near:2, hit:3};
+    function type(k){
+      if(over || busy) return;
+      if(k === 'enter'){
+        if(cur.length < 5){ toast('Type 5 letters first'); rows[row].classList.remove('shake'); void rows[row].offsetWidth; rows[row].classList.add('shake'); return; }
+        const g = cur, r = row, res = evaluate(g); busy = true;
+        res.forEach((s, k2) => api.after(() => {
+          rows[r].children[k2].classList.add(s);
+          const ch = g[k2];
+          if(!keyState[ch] || RANK[s] > RANK[keyState[ch]]){ keyState[ch] = s; keyEls[ch].className = s; }
+        }, k2*130));
+        api.after(() => {
+          busy = false;
+          if(g === ans){ over = true; api.beep(880, .2); api.end(r + 1, `The word was ${ans.toUpperCase()}`); }
+          else if(r === 5){ over = true; api.beep(140, .3); api.fail(ans.toUpperCase(), 'Out of guesses. This was the word.'); }
+        }, 5*130 + 250);
+        if(g !== ans && r < 5){ row++; cur = ''; }
+        else if(g !== ans) cur = '';
+        return;
+      }
+      if(k === 'back'){ cur = cur.slice(0, -1); paint(); return; }
+      if(cur.length < 5){ cur += k; paint(); }
+    }
+    api.on(window, 'keydown', e => {
+      if(over || e.ctrlKey || e.metaKey || e.altKey) return;
+      if(e.key === 'Enter'){ e.preventDefault(); type('enter'); }
+      else if(e.key === 'Backspace'){ e.preventDefault(); type('back'); }
+      else if(/^[a-zA-Z]$/.test(e.key)) type(e.key.toLowerCase());
+    });
+  }
+});
+
+/* =========================================================
+   2-player games (friend on the same computer, or a bot)
+   ========================================================= */
+const OPP = [
+  {id:'human', label:'2 Players', def:true}, {id:'easy', label:'Easy bot'}, {id:'medium', label:'Medium bot'},
+  {id:'hard', label:'Hard bot'}, {id:'extreme', label:'Extreme bot'}
+];
+
+/* ---------- Tic-Tac-Toe ---------- */
+const LINES3 = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+function tttWinner(b){
+  for(const [a,c,d] of LINES3) if(b[a] && b[a] === b[c] && b[a] === b[d]) return {p:b[a], line:[a,c,d]};
+  return b.every(v => v) ? {p:'draw', line:[]} : null;
+}
+function tttBest(b, me){
+  const opp = me === 'X' ? 'O' : 'X';
+  const mm = (turn, depth) => {
+    const w = tttWinner(b);
+    if(w) return w.p === 'draw' ? 0 : (w.p === me ? 10 - depth : depth - 10);
+    let best = turn === me ? -99 : 99;
+    for(let i=0;i<9;i++) if(!b[i]){
+      b[i] = turn; const s = mm(turn === me ? opp : me, depth + 1); b[i] = '';
+      best = turn === me ? Math.max(best, s) : Math.min(best, s);
+    }
+    return best;
+  };
+  let bestS = -99, moves = [];
+  for(let i=0;i<9;i++) if(!b[i]){
+    b[i] = me; const s = mm(opp, 1); b[i] = '';
+    if(s > bestS){ bestS = s; moves = [i]; } else if(s === bestS) moves.push(i);
+  }
+  return moves[rand(moves.length)];
+}
+game({
+  id:'tic-tac-toe', cat:'two', twoP:true, isNew:true, title:'Tic-Tac-Toe', icon:'⭕', color:'var(--red)',
+  blurb:'Three in a row. Play a friend or a bot.', how:'Get three in a row to win. Pick 2 Players to play someone on this computer, or pick a bot. Who goes first switches every round. Keys 1 to 9 pick squares (top-left is 1).',
+  modes:OPP,
+  mount(el, api, mode){
+    const bot = mode !== 'human';
+    const skill = {easy:0.25, medium:0.6, hard:0.88, extreme:1}[mode] || 1;
+    const nm = p => bot ? (p === 'X' ? 'You' : 'Bot') : (p === 'X' ? 'Player 1' : 'Player 2');
+    el.innerHTML = `<p class="turnline" aria-live="polite"></p><div class="tiles ttt"></div>
+      <div class="hud"><span>${nm('X')} (X) <b class="sx">0</b></span><span>Draws <b class="sd">0</b></span><span>${nm('O')} (O) <b class="so">0</b></span></div>
+      <button class="btn primary nextr" type="button" hidden>Next round</button>`;
+    const grid = $('.ttt', el), line = $('.turnline', el), nextB = $('.nextr', el);
+    gridN(grid, 3);
+    const tally = {X:0, O:0, D:0};
+    let b = [], turn = 'X', starter = 'O', over = true;
+    const cells = Array.from({length:9}, (_, i) => {
+      const c = document.createElement('button'); c.type = 'button'; c.setAttribute('aria-label', 'Square ' + (i+1));
+      api.on(c, 'click', () => { if(bot && turn === 'O') return; play(i); });
+      grid.appendChild(c); return c;
+    });
+    function status(){ line.textContent = bot ? (turn === 'X' ? 'Your turn (X)' : 'Bot is thinking…') : `${nm(turn)}’s turn (${turn})`; }
+    function newRound(){
+      b = Array(9).fill(''); starter = starter === 'X' ? 'O' : 'X'; turn = starter; over = false; nextB.hidden = true;
+      cells.forEach(c => { c.textContent = ''; c.className = ''; c.disabled = false; });
+      status(); maybeBot();
+    }
+    function play(i){
+      if(over || b[i]) return;
+      b[i] = turn; cells[i].textContent = turn; cells[i].className = turn.toLowerCase(); cells[i].disabled = true;
+      api.beep(turn === 'X' ? 520 : 400, .05);
+      const w = tttWinner(b);
+      if(w){
+        over = true; bumpPlays(GAMES.find(g => g.id === 'tic-tac-toe'));
+        if(w.p === 'draw'){ tally.D++; line.textContent = 'It’s a draw!'; }
+        else { tally[w.p]++; w.line.forEach(k => cells[k].classList.add('win')); line.textContent = bot ? (w.p === 'X' ? 'You win! 🎉' : 'The bot wins!') : `${nm(w.p)} wins! 🎉`; api.beep(w.p === 'X' || !bot ? 880 : 160, .2); }
+        cells.forEach(c => c.disabled = true);
+        $('.sx', el).textContent = tally.X; $('.so', el).textContent = tally.O; $('.sd', el).textContent = tally.D;
+        nextB.hidden = false; nextB.focus({preventScroll:true});
+        return;
+      }
+      turn = turn === 'X' ? 'O' : 'X'; status(); maybeBot();
+    }
+    function maybeBot(){
+      if(!bot || turn !== 'O' || over) return;
+      api.after(() => {
+        if(over) return;
+        const empty = b.map((v, i) => v ? -1 : i).filter(i => i >= 0);
+        play(Math.random() < skill ? tttBest(b, 'O') : empty[rand(empty.length)]);
+      }, 450);
+    }
+    api.on(nextB, 'click', newRound);
+    api.on(window, 'keydown', e => { if(/^[1-9]$/.test(e.key) && !e.ctrlKey && !e.metaKey && !e.altKey && !(bot && turn === 'O')) play(+e.key - 1); });
+    newRound();
+  }
+});
+
+/* ---------- Connect Four ---------- */
+const C4R = 6, C4C = 7, C4ORDER = [3,2,4,1,5,0,6], C4DIRS = [[0,1],[1,0],[1,1],[1,-1]];
+const c4Drop = (b, c) => { for(let r=C4R-1;r>=0;r--) if(!b[r*C4C + c]) return r; return -1; };
+function c4Line(b, r, c){
+  const p = b[r*C4C + c];
+  for(const [dr, dc] of C4DIRS){
+    const cells = [r*C4C + c];
+    for(const s of [1, -1]){
+      let rr = r + dr*s, cc = c + dc*s;
+      while(rr >= 0 && rr < C4R && cc >= 0 && cc < C4C && b[rr*C4C + cc] === p){ cells.push(rr*C4C + cc); rr += dr*s; cc += dc*s; }
+    }
+    if(cells.length >= 4) return cells;
+  }
+  return null;
+}
+function c4Eval(b, me){
+  const opp = 3 - me; let s = 0;
+  for(let r=0;r<C4R;r++){ const v = b[r*C4C + 3]; if(v === me) s += 3; else if(v === opp) s -= 3; }
+  for(let r=0;r<C4R;r++) for(let c=0;c<C4C;c++) for(const [dr, dc] of C4DIRS){
+    const er = r + 3*dr, ec = c + 3*dc;
+    if(er < 0 || er >= C4R || ec < 0 || ec >= C4C) continue;
+    let m = 0, o = 0;
+    for(let k=0;k<4;k++){ const v = b[(r + k*dr)*C4C + c + k*dc]; if(v === me) m++; else if(v === opp) o++; }
+    if(m && o) continue;
+    if(m === 3) s += 5; else if(m === 2) s += 2;
+    else if(o === 3) s -= 4; else if(o === 2) s -= 1;
+  }
+  return s;
+}
+function c4Negamax(b, depth, alpha, beta, p, me){
+  if(depth === 0) return (p === me ? 1 : -1)*c4Eval(b, me);
+  let best = -Infinity, any = false;
+  for(const c of C4ORDER){
+    const r = c4Drop(b, c); if(r < 0) continue; any = true;
+    b[r*C4C + c] = p;
+    const v = c4Line(b, r, c) ? 1000 + depth : -c4Negamax(b, depth - 1, -beta, -alpha, 3 - p, me);
+    b[r*C4C + c] = 0;
+    if(v > best) best = v;
+    if(best > alpha) alpha = best;
+    if(alpha >= beta) break;
+  }
+  return any ? best : 0;
+}
+function c4Bot(b, p, depth){
+  let best = -Infinity, moves = [];
+  for(const c of C4ORDER){
+    const r = c4Drop(b, c); if(r < 0) continue;
+    b[r*C4C + c] = p;
+    const v = c4Line(b, r, c) ? 1000 + depth : -c4Negamax(b, depth - 1, -Infinity, Infinity, 3 - p, p);
+    b[r*C4C + c] = 0;
+    if(v > best){ best = v; moves = [c]; } else if(v === best) moves.push(c);
+  }
+  return moves[rand(moves.length)];
+}
+game({
+  id:'connect-four', cat:'two', twoP:true, isNew:true, title:'Connect Four', icon:'🔴', color:'var(--blue)',
+  blurb:'Drop discs. Line up four to win.', how:'Click a column (or press 1 to 7) to drop a disc. Four in a row in any direction wins. Play a friend on this computer or a bot. Who goes first switches every round.',
+  modes:OPP,
+  mount(el, api, mode){
+    const bot = mode !== 'human';
+    const cfg = {easy:{d:1, r:0.45}, medium:{d:2, r:0.12}, hard:{d:4, r:0}, extreme:{d:7, r:0}}[mode] || {d:4, r:0};
+    const nm = p => bot ? (p === 1 ? 'You' : 'Bot') : (p === 1 ? 'Red' : 'Yellow');
+    el.classList.add('tight');
+    el.innerHTML = `<p class="turnline" aria-live="polite"></p><div class="c4"></div>
+      <div class="hud"><span>${nm(1)} <b class="s1">0</b></span><span>Draws <b class="sd">0</b></span><span>${nm(2)} <b class="s2">0</b></span></div>
+      <button class="btn primary nextr" type="button" hidden>Next round</button>`;
+    const board = $('.c4', el), line = $('.turnline', el), nextB = $('.nextr', el);
+    const tally = {1:0, 2:0, D:0};
+    let b = [], turn = 1, starter = 2, over = true;
+    const cells = Array.from({length:C4R*C4C}, (_, i) => {
+      const d = document.createElement('div'); d.setAttribute('role', 'button'); d.setAttribute('aria-label', 'Column ' + (i%C4C + 1));
+      api.on(d, 'click', () => { if(bot && turn === 2) return; play(i % C4C); });
+      board.appendChild(d); return d;
+    });
+    const dot = p => p === 1 ? '🔴' : '🟡';
+    function status(){ line.textContent = bot ? (turn === 1 ? `Your turn ${dot(1)}` : `Bot is thinking… ${dot(2)}`) : `${nm(turn)}’s turn ${dot(turn)}`; }
+    function newRound(){
+      b = Array(C4R*C4C).fill(0); starter = 3 - starter; turn = starter; over = false; nextB.hidden = true;
+      cells.forEach(c => c.className = ''); status(); maybeBot();
+    }
+    function play(col){
+      if(over) return;
+      const r = c4Drop(b, col); if(r < 0) return;
+      const i = r*C4C + col; b[i] = turn; cells[i].className = 'p' + turn + ' drop'; api.beep(turn === 1 ? 440 : 360, .05);
+      const w = c4Line(b, r, col);
+      if(w || b.every(v => v)){
+        over = true; bumpPlays(GAMES.find(g => g.id === 'connect-four'));
+        if(w){ tally[turn]++; w.forEach(k => cells[k].classList.add('win')); line.textContent = bot ? (turn === 1 ? 'You win! 🎉' : 'The bot wins!') : `${nm(turn)} wins! 🎉`; api.beep(bot && turn === 2 ? 160 : 880, .2); }
+        else { tally.D++; line.textContent = 'The board is full. It’s a draw!'; }
+        $('.s1', el).textContent = tally[1]; $('.s2', el).textContent = tally[2]; $('.sd', el).textContent = tally.D;
+        nextB.hidden = false; nextB.focus({preventScroll:true});
+        return;
+      }
+      turn = 3 - turn; status(); maybeBot();
+    }
+    function maybeBot(){
+      if(!bot || turn !== 2 || over) return;
+      api.after(() => {
+        if(over) return;
+        const open = C4ORDER.filter(c => c4Drop(b, c) >= 0);
+        play(Math.random() < cfg.r ? open[rand(open.length)] : c4Bot(b, 2, cfg.d));
+      }, 380);
+    }
+    api.on(nextB, 'click', newRound);
+    api.on(window, 'keydown', e => { if(/^[1-7]$/.test(e.key) && !e.ctrlKey && !e.metaKey && !e.altKey && !(bot && turn === 2)) play(+e.key - 1); });
+    newRound();
+  }
+});
+
+/* ---------- Paddle Battle ---------- */
+game({
+  id:'paddle-battle', cat:'two', twoP:true, isNew:true, title:'Paddle Battle', icon:'🥊', color:'var(--teal)',
+  blurb:'Head-to-head paddle tennis. First to 7.', how:'Player 1 (left) uses W and S. Player 2 (right) uses the Up and Down arrows. On a touchscreen, drag on your own half. Against a bot, use W/S, the arrows, or your mouse. First to 7 wins.',
+  modes:OPP,
+  mount(el, api, mode){
+    el.classList.add('flush');
+    const {c, ctx} = makeCanvas(el); const P = pal();
+    const bot = mode !== 'human';
+    const B = {easy:{v:210, e:0.9, pred:false}, medium:{v:300, e:0.55, pred:false}, hard:{v:430, e:0.35, pred:true}, extreme:{v:900, e:0.08, pred:true}}[mode] || null;
+    const ph = Math.round(c.H*0.2), pw = 12, br = 8, lx = 20, rx = c.W - 20 - pw, WIN = 7;
+    let ly = c.H/2, ry = c.H/2, lt = ly, rt = ry, ball = {x:c.W/2, y:c.H/2, vx:0, vy:0}, speed = 330, sL = 0, sR = 0, serveT = 0.9, dirServe = Math.random() < .5 ? 1 : -1, running = false, over = false, err = 0;
+    const keys = {}, pointers = new Map();
+    api.on(window, 'blur', () => { for(const k in keys) keys[k] = false; });
+    function serve(){ speed = 330; const a = (Math.random() - .5)*0.8; ball.x = c.W/2; ball.y = c.H/2; ball.vx = Math.cos(a)*speed*dirServe; ball.vy = Math.sin(a)*speed; err = (Math.random()*2 - 1)*(B ? B.e : 0); }
+    function predictY(tx){
+      if(ball.vx <= 0) return c.H/2;
+      const t = (tx - ball.x)/ball.vx, top = br, span = c.H - 2*br;
+      const y = ball.y + ball.vy*t - top, m = ((y % (2*span)) + 2*span) % (2*span);
+      return top + (m <= span ? m : 2*span - m);
+    }
+    const sideOf = x => bot ? 'L' : (x < c.W/2 ? 'L' : 'R');
+    api.on(c, 'pointerdown', e => { const p = ptr(c, e); pointers.set(e.pointerId, sideOf(p.x)); if(pointers.get(e.pointerId) === 'L') lt = p.y; else rt = p.y; if(!over) running = true; });
+    api.on(c, 'pointermove', e => {
+      const p = ptr(c, e);
+      const side = pointers.get(e.pointerId) || (e.pointerType === 'mouse' ? sideOf(p.x) : null);
+      if(side === 'L') lt = p.y; else if(side === 'R') rt = p.y;
+    });
+    const lift = e => pointers.delete(e.pointerId);
+    api.on(c, 'pointerup', lift); api.on(c, 'pointercancel', lift);
+    api.on(window, 'keydown', e => {
+      if(e.target.closest && e.target.closest('button,a,input')) return;
+      const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+      if(['w','s','ArrowUp','ArrowDown'].includes(k)){ keys[k] = true; if(!over) running = true; }
+      if(e.code === 'Space' && !over) running = true;
+    });
+    api.on(window, 'keyup', e => { const k = e.key.length === 1 ? e.key.toLowerCase() : e.key; keys[k] = false; });
+    api.loop(dt => {
+      if(keys.w) lt -= 500*dt; if(keys.s) lt += 500*dt;
+      if(bot){ if(keys.ArrowUp) lt -= 500*dt; if(keys.ArrowDown) lt += 500*dt; }
+      else { if(keys.ArrowUp) rt -= 500*dt; if(keys.ArrowDown) rt += 500*dt; }
+      lt = clamp(lt, ph/2, c.H - ph/2); ly += (lt - ly)*Math.min(1, dt*18);
+      if(bot && running && !over){
+        const target = ball.vx > 0 && serveT <= 0 ? (B.pred ? predictY(rx - br) : ball.y) + err*ph/2 : c.H/2;
+        rt = clamp(target, ph/2, c.H - ph/2);
+        ry += clamp(rt - ry, -B.v*dt, B.v*dt);
+      } else if(!bot){ rt = clamp(rt, ph/2, c.H - ph/2); ry += (rt - ry)*Math.min(1, dt*18); }
+      if(running && !over){
+        if(serveT > 0){ ball.x = c.W/2; ball.y = c.H/2; serveT -= dt; if(serveT <= 0) serve(); }
+        else {
+          const N = 3;
+          for(let s=0;s<N;s++){
+            ball.x += ball.vx*dt/N; ball.y += ball.vy*dt/N;
+            if(ball.y < br){ ball.y = br; ball.vy = Math.abs(ball.vy); }
+            if(ball.y > c.H - br){ ball.y = c.H - br; ball.vy = -Math.abs(ball.vy); }
+            if(ball.vx < 0 && ball.x - br <= lx + pw && ball.x - br >= lx - 14 && Math.abs(ball.y - ly) <= ph/2 + br){
+              const a = clamp((ball.y - ly)/(ph/2), -1, 1)*0.9; speed = Math.min(760, speed + 22);
+              ball.vx = Math.cos(a)*speed; ball.vy = Math.sin(a)*speed; ball.x = lx + pw + br; api.beep(500, .03);
+              err = (Math.random()*2 - 1)*(B ? B.e : 0);
+            }
+            if(ball.vx > 0 && ball.x + br >= rx && ball.x + br <= rx + pw + 14 && Math.abs(ball.y - ry) <= ph/2 + br){
+              const a = clamp((ball.y - ry)/(ph/2), -1, 1)*0.9; speed = Math.min(760, speed + 22);
+              ball.vx = -Math.cos(a)*speed; ball.vy = Math.sin(a)*speed; ball.x = rx - br; api.beep(420, .03);
+            }
+          }
+          if(ball.x < -br || ball.x > c.W + br){
+            const leftScored = ball.x > c.W;
+            if(leftScored){ sL++; dirServe = 1; } else { sR++; dirServe = -1; }
+            serveT = 0.9; api.beep(leftScored ? 880 : 300, .15);
+            if(sL >= WIN || sR >= WIN){
+              over = true;
+              const lName = bot ? 'You' : 'Player 1', rName = bot ? 'Bot' : 'Player 2';
+              api.result(sL > sR ? (bot ? 'You win! 🎉' : 'Player 1 wins! 🎉') : (bot ? 'The bot wins' : 'Player 2 wins! 🎉'), `${lName} ${sL} – ${sR} ${rName}`);
+            }
+          }
+        }
+      }
+      ctx.clearRect(0, 0, c.W, c.H);
+      ctx.strokeStyle = P.line; ctx.lineWidth = 3; ctx.setLineDash([10, 12]); ctx.beginPath(); ctx.moveTo(c.W/2, 0); ctx.lineTo(c.W/2, c.H); ctx.stroke(); ctx.setLineDash([]);
+      txt(ctx, sL, c.W/2 - 40, 56, P.blue, 40, 800);
+      txt(ctx, sR, c.W/2 + 40, 56, P.red, 40, 800);
+      txt(ctx, bot ? 'You' : 'P1 · W/S', 16, c.H - 14, P.muted, 14, 600, 'left');
+      txt(ctx, bot ? `Bot (${OPP.find(o => o.id === mode).label.replace(' bot', '')})` : 'P2 · ↑/↓', c.W - 16, c.H - 14, P.muted, 14, 600, 'right');
+      ctx.fillStyle = P.blue; ctx.fillRect(lx, ly - ph/2, pw, ph);
+      ctx.fillStyle = P.red; ctx.fillRect(rx, ry - ph/2, pw, ph);
+      ctx.fillStyle = P.ink; ctx.beginPath(); ctx.arc(ball.x, ball.y, br, 0, Math.PI*2); ctx.fill();
+      if(!running) txt(ctx, 'Press a key or tap to start', c.W/2, c.H/2 + 50, P.ink, 18);
+    });
+  }
+});
+
+/* =========================================================
+   App shell
+   ========================================================= */
+const app = $('#app');
+let current = null;
+let homeState = {q:'', cat:'all'};
+const byId = id => GAMES.find(g => g.id === id);
+const modeOf = g => {
+  if(!g.modes) return null;
+  const saved = prefs.modes[g.id];
+  return (g.modes.find(m => m.id === saved) || g.modes.find(m => m.def) || g.modes[0]).id;
+};
+const bestKey = (g, mode) => 'best:' + g.id + (mode ? ':' + mode : '');
+function bestText(g){
+  if(g.twoP) return '';
+  const mode = modeOf(g), v = store.get(bestKey(g, mode));
+  const label = g.modes ? ` (${g.modes.find(m => m.id === mode).label})` : '';
+  let s = v != null ? `Best${label}: ${g.fmt(v)}` : '';
+  if(g.extraBest){ const x = store.get(bestKey(g, mode) + ':' + g.extraBest.key); if(x != null) s += (s ? ' · ' : '') + `${g.extraBest.label}: ${g.fmt(x)}`; }
+  return s;
+}
+function bumpPlays(g){ const k = 'plays:' + g.id; store.set(k, (store.get(k) || 0) + 1); }
+
+function renderSound(){
+  const b = $('#sound');
+  b.textContent = prefs.muted ? '🔇 Sound off' : '🔊 Sound on';
+  b.setAttribute('aria-pressed', String(!prefs.muted));
+}
+$('#sound').addEventListener('click', () => { prefs.muted = !prefs.muted; savePrefs(); renderSound(); });
+renderSound();
+
+function cardHTML(g){
+  const bt = bestText(g);
+  return `<a class="card" href="#${g.id}">${g.isNew ? '<span class="newtag">New</span>' : ''}<div class="art" style="--c:${g.color}"><span aria-hidden="true">${g.icon}</span></div>
+    <div class="info"><span class="cattag">${CATS.find(c => c.id === g.cat).label}</span><h2>${g.title}</h2><p>${g.blurb}</p><span class="pill ${bt || g.twoP ? 'has' : ''}">${g.twoP ? '👥 Friend or bot' : (bt || 'Not played yet')}</span></div></a>`;
+}
+
+function renderGrid(){
+  const q = homeState.q.trim().toLowerCase();
+  const list = GAMES.filter(g => (homeState.cat === 'all' || g.cat === homeState.cat) && (!q || (g.title + ' ' + g.blurb + ' ' + g.cat).toLowerCase().includes(q)));
+  const grid = $('#grid');
+  if(!list.length){
+    grid.innerHTML = `<div class="empty-state"><p>No games match “${homeState.q.replace(/[&<>"]/g, '')}”.</p><button class="btn sm" id="clearf" type="button">Show all games</button></div>`;
+    $('#clearf').addEventListener('click', () => { homeState = {q:'', cat:'all'}; $('#search').value = ''; syncChips(); renderGrid(); });
+    return;
+  }
+  grid.innerHTML = list.map(cardHTML).join('');
+}
+function syncChips(){ $$('.chip').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.cat === homeState.cat))); }
+
+function showHome(){
+  stopGame();
+  document.title = 'Pocket Playground';
+  const recent = prefs.recent.map(byId).filter(Boolean).slice(0, 5);
+  app.innerHTML = `
+    <section class="hero">
+      <div><h1>Tiny games. No sign-up. Just play.</h1><p>${GAMES.length} quick games. Beat your own best scores.</p></div>
+      <button class="btn primary" id="surprise" type="button">🎲 Surprise me</button>
+    </section>
+    ${recent.length ? `<div class="recent"><span>Jump back in:</span>${recent.map(g => `<a class="btn sm" href="#${g.id}">${g.icon} ${g.title}</a>`).join('')}</div>` : ''}
+    <div class="toolbar">
+      <input id="search" class="search" type="search" placeholder="Search games…" aria-label="Search games" autocomplete="off">
+      <div class="cats" role="group" aria-label="Filter by category">${CATS.map(c => `<button type="button" class="chip" data-cat="${c.id}" aria-pressed="false">${c.label}<small>${c.id === 'all' ? GAMES.length : GAMES.filter(g => g.cat === c.id).length}</small></button>`).join('')}</div>
+    </div>
+    <section class="grid" id="grid" aria-live="polite"></section>
+    <div class="foot-tools" id="reset-area"><button class="btn sm" id="reset" type="button">Reset all best scores</button></div>`;
+  const s = $('#search'); s.value = homeState.q;
+  s.addEventListener('input', () => { homeState.q = s.value; renderGrid(); });
+  $$('.chip').forEach(b => b.addEventListener('click', () => { homeState.cat = b.dataset.cat; syncChips(); renderGrid(); }));
+  $('#surprise').addEventListener('click', () => { location.hash = '#' + GAMES[rand(GAMES.length)].id; });
+  $('#reset').addEventListener('click', askReset);
+  syncChips(); renderGrid();
+}
+function askReset(){
+  const a = $('#reset-area');
+  a.innerHTML = '<span>Erase every best score on this device?</span><button class="btn sm primary" id="reset-yes" type="button">Yes, erase</button><button class="btn sm" id="reset-no" type="button">Cancel</button>';
+  $('#reset-no').addEventListener('click', () => { a.innerHTML = '<button class="btn sm" id="reset" type="button">Reset all best scores</button>'; $('#reset').addEventListener('click', askReset); });
+  $('#reset-yes').addEventListener('click', () => {
+    store.clearBests(); renderGrid();
+    a.innerHTML = '<span>All best scores erased.</span>';
+  });
+}
+
+function showGame(g){
+  stopGame();
+  document.title = g.title + ' · Pocket Playground';
+  prefs.recent = [g.id, ...prefs.recent.filter(x => x !== g.id)].slice(0, 6); savePrefs();
+  const i = GAMES.indexOf(g), prev = GAMES[(i - 1 + GAMES.length) % GAMES.length], next = GAMES[(i + 1) % GAMES.length];
+  app.innerHTML = `
+    <div class="gamehead">
+      <a class="btn sm" href="#games">← All games</a><span class="spacer"></span>
+      ${g.modes ? `<div class="seg" role="group" aria-label="Game mode">${g.modes.map(m => `<button type="button" data-mode="${m.id}" aria-pressed="false">${m.label}</button>`).join('')}</div>` : ''}
+      <span class="pill" id="bestpill"></span>
+      <button class="btn sm" id="restart" type="button">↻ Restart</button>
+    </div>
+    <h1 class="gtitle">${g.icon} ${g.title}</h1>
+    <p class="howto">${g.how}</p>
+    <div class="stage" id="stage"></div>
+    <p class="keys-hint">Shortcuts: <kbd>Esc</kbd> all games${g.typing ? '' : ' · <kbd>R</kbd> restart'}</p>
+    <nav class="pager" aria-label="Other games"><a class="btn sm" href="#${prev.id}">← ${prev.icon} ${prev.title}</a><a class="btn sm" href="#${next.id}">${next.icon} ${next.title} →</a></nav>`;
+  $$('.seg button').forEach(b => b.addEventListener('click', () => { prefs.modes[g.id] = b.dataset.mode; savePrefs(); mountGame(g); }));
+  $('#restart').addEventListener('click', () => mountGame(g));
+  mountGame(g);
+  window.scrollTo(0, 0);
+}
+function refreshBest(g){
+  const p = $('#bestpill'); if(!p) return;
+  p.hidden = !!g.twoP;
+  const t = bestText(g); p.textContent = t || 'No best score yet'; p.classList.toggle('has', !!t);
+}
+function stopGame(){ if(current){ current.bag.run(); current = null; } }
+
+function overlay(stage, g, o){
+  const ov = document.createElement('div'); ov.className = 'end';
+  ov.innerHTML = `<div class="endbox" role="dialog" aria-label="Results"><p class="eyebrow ${o.isNew ? 'new' : ''}">${o.eyebrow}</p><p class="big">${o.big}</p>${o.detail ? `<p class="detail">${o.detail}</p>` : ''}<p class="muted">${o.sub}</p>
+    <div class="endbtns"><button class="btn primary again" type="button">↻ Play again</button><a class="btn" href="#games">All games</a></div></div>`;
+  stage.appendChild(ov);
+  const shown = performance.now(), again = $('.again', ov);
+  /* ignore clicks/keys for a moment so a key still held from the game doesn't skip the results */
+  again.addEventListener('click', () => { if(performance.now() - shown < 600) return; mountGame(g); });
+  setTimeout(() => { if(again.isConnected) again.focus({preventScroll:true}); }, 60);
+}
+
+function mountGame(g){
+  stopGame();
+  const mode = modeOf(g);
+  $$('.seg button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.mode === mode)));
+  refreshBest(g);
+  const old = $('#stage'); if(!old) return;
+  const stage = document.createElement('div'); stage.id = 'stage'; stage.className = 'stage'; stage.tabIndex = -1;
+  old.replaceWith(stage);
+  const b = bag(); let ended = false;
+  current = {g, bag:b};
+  const key = bestKey(g, mode);
+  const reportKey = (k, score) => {
+    const prev = store.get(k);
+    if(!g.lower && score <= 0) return {isNew:false, best:prev}; /* a zero is never a "best" */
+    const isNew = prev == null || (g.lower ? score < prev : score > prev);
+    if(isNew) store.set(k, score);
+    return {isNew, best: isNew ? score : prev};
+  };
+  const api = {
+    mode,
+    on: (t, type, fn, o) => b.on(t, type, fn, o),
+    after: (fn, ms) => b.after(fn, ms),
+    every: (fn, ms) => b.every(fn, ms),
+    cancel: id => { clearTimeout(id); clearInterval(id); },
+    loop: fn => b.loop(fn),
+    beep,
+    report(score){ const r = reportKey(key, score); bumpPlays(g); refreshBest(g); return r; },
+    reportExtra(name, score){ const r = reportKey(key + ':' + name, score); refreshBest(g); return r; },
+    end(score, detail=''){
+      if(ended) return; ended = true;
+      const r = api.report(score);
+      overlay(stage, g, {eyebrow: r.isNew ? '🎉 New personal best!' : 'Game over', isNew:r.isNew, big:g.fmt(score), sub: r.best != null ? 'Your best: ' + g.fmt(r.best) : 'No best score yet', detail});
+    },
+    fail(big, detail=''){
+      if(ended) return; ended = true; bumpPlays(g);
+      const best = store.get(key);
+      overlay(stage, g, {eyebrow:'Game over', big, sub: best != null ? 'Your best: ' + g.fmt(best) : 'No best score yet', detail});
+    },
+    result(big, detail=''){
+      if(ended) return; ended = true; bumpPlays(g);
+      overlay(stage, g, {eyebrow:'Match over', big, sub:'', detail});
+    }
+  };
+  try{ g.mount(stage, api, mode); }
+  catch(err){
+    console.error(err); b.run();
+    stage.innerHTML = '<p class="msg">This game hit a problem while loading.</p><button class="btn primary" type="button">Try again</button>';
+    $('button', stage).addEventListener('click', () => mountGame(g));
+  }
+  if(!stage.contains(document.activeElement)) stage.focus({preventScroll:true});
+}
+
+/* global shortcuts while a game is open */
+window.addEventListener('keydown', e => {
+  if(!current) return;
+  const t = e.target, tag = (t.tagName || '').toLowerCase();
+  if(e.key === 'Escape'){ location.hash = '#games'; return; }
+  if(tag === 'input' || tag === 'textarea') return;
+  if((e.key === 'r' || e.key === 'R') && !e.repeat && !current.g.typing && !e.ctrlKey && !e.metaKey && !e.altKey){ e.preventDefault(); mountGame(current.g); return; }
+  if([' ', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key) && !['button', 'a', 'select'].includes(tag)) e.preventDefault();
+});
+
+/* canvas games are sized once at mount; if the stage changes size (rotation, resize), restart them at the new size */
+let resizeT = null;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeT);
+  resizeT = setTimeout(() => {
+    const st = $('#stage'), cv = st && st.querySelector('canvas.cv');
+    if(!current || !cv) return;
+    if(Math.abs(st.clientWidth - cv.W) > 2 || Math.abs(st.clientHeight - cv.H) > 2) mountGame(current.g);
+  }, 300);
+});
+
+function route(){
+  const g = byId(location.hash.replace(/^#\/?/, ''));
+  g ? showGame(g) : showHome();
+}
+window.addEventListener('hashchange', route);
+route();
+</script>
+</body>
+</html>
