@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pocket Playground Tests</title>
+<style>
+  body{font:15px/1.5 system-ui, sans-serif; margin:24px; background:#fafafa; color:#222}
+  h1{font-size:22px; margin:0 0 12px}
+  li{margin:4px 0}
+  .pass{color:#1b7f3b} .fail{color:#c0392b; font-weight:700}
+  iframe{width:900px; height:600px; border:1px solid #ccc; max-width:100%}
+</style>
+</head>
+<body>
+<h1>Pocket Playground tests</h1>
+<p>Open this page from the same folder or web server as <code>index.html</code>. It loads the site in a frame and checks the riskiest logic.</p>
+<p id="sum">Running…</p>
+<ul id="out"></ul>
+<iframe id="f" src="index.html#games" title="Site under test"></iframe>
+<script>
+const out = document.getElementById('out'), sum = document.getElementById('sum');
+let passed = 0, failed = 0;
+function check(name, ok, info = ''){
+  const li = document.createElement('li'); li.className = ok ? 'pass' : 'fail';
+  li.textContent = (ok ? '✔ ' : '✘ ') + name + (info ? ' — ' + info : ''); out.appendChild(li);
+  ok ? passed++ : failed++;
+}
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+document.getElementById('f').addEventListener('load', async () => {
+  const w = document.getElementById('f').contentWindow;
+  try{
+    /* 1. Best-score rule */
+    check('zero is never a best score', w.bestUpdate(null, 0, false).isNew === false);
+    check('first score is a best', w.bestUpdate(null, 5, false).isNew === true);
+    check('higher-is-better keeps the highest', w.bestUpdate(10, 7, false).best === 10 && w.bestUpdate(10, 12, false).best === 12);
+    check('lower-is-better keeps the lowest', w.bestUpdate(300, 250, true).best === 250 && w.bestUpdate(250, 300, true).best === 250);
+    check('lower-is-better allows a perfect 0', w.bestUpdate(40, 0, true).isNew === true);
+
+    /* 2. Every game has the fields the shell needs */
+    const GAMES = w.eval('GAMES'); const bad = GAMES.filter(g => !g.id || !g.title || !g.mount || (!g.twoP && !g.toy && typeof g.fmt !== 'function'));
+    check('every game is well-formed', bad.length === 0, bad.map(g => g.id).join(', '));
+    check('game ids are unique', new Set(GAMES.map(g => g.id)).size === GAMES.length);
+
+    /* 3. Tic-Tac-Toe Extreme never loses to random play */
+    let losses = 0;
+    for(let n=0;n<40;n++){
+      const b = Array(9).fill(''); let turn = n % 2 ? 'O' : 'X';
+      for(;;){
+        const win = w.tttWinner(b); if(win){ if(win.p === 'X') losses++; break; }
+        const empty = b.map((v, i) => v ? -1 : i).filter(i => i >= 0);
+        b[turn === 'O' ? w.tttBest(b, 'O') : empty[Math.floor(Math.random()*empty.length)]] = turn;
+        turn = turn === 'X' ? 'O' : 'X';
+      }
+    }
+    check('Tic-Tac-Toe extreme bot never loses (40 games)', losses === 0, losses + ' losses');
+
+    /* 4. Sudoku puzzles have exactly one solution */
+    let sdkOk = true;
+    for(const clues of [40, 32, 26]){ const {puz} = w.sdkMake(clues); if(w.sdkSolve(puz.slice(), 2) !== 1) sdkOk = false; }
+    check('Sudoku puzzles have one solution (easy, medium, hard)', sdkOk);
+
+    /* 5. Checkers rules */
+    const start = new Array(64).fill(0);
+    for(let i=0;i<64;i++){ const r = Math.floor(i/8), c = i % 8; if((r + c) % 2 === 1){ if(r < 3) start[i] = 2; else if(r > 4) start[i] = 1; } }
+    check('Checkers opening has 7 moves', w.ckMoves(start, 1).length === 7);
+    const cap = new Array(64).fill(0); cap[42] = 1; cap[35] = 2; cap[56] = 1;
+    check('Checkers forces captures', w.ckMoves(cap, 1).every(m => m.caps.length > 0));
+
+    /* 6. Connect Four finds a winning move */
+    const c4 = new Array(42).fill(0); c4[35] = c4[36] = c4[37] = 2;
+    check('Connect Four bot takes a win (column 4)', w.c4Bot(c4, 2, 4) === 3);
+
+    /* 7. Slide Puzzle boards are always solvable */
+    let solvable = 0;
+    for(let n=0;n<10;n++){
+      w.location.hash = '#games'; await sleep(30); w.location.hash = '#slide-puzzle'; await sleep(80);
+      const cells = [...w.document.querySelectorAll('.sp > button')].map(b => +b.textContent || 0);
+      const size = Math.sqrt(cells.length), v = cells.filter(Boolean); let inv = 0;
+      for(let a=0;a<v.length;a++) for(let b=a+1;b<v.length;b++) if(v[a] > v[b]) inv++;
+      const rowFromBottom = size - Math.floor(cells.indexOf(0)/size);
+      if(size % 2 ? inv % 2 === 0 : (rowFromBottom % 2 === 0) === (inv % 2 === 1)) solvable++;
+    }
+    check('Slide Puzzle boards are solvable (10 boards)', solvable === 10, solvable + '/10');
+
+    /* 8. Every game opens without an error */
+    const broken = [];
+    for(const g of GAMES){ w.location.hash = '#' + g.id; await sleep(40); const st = w.document.getElementById('stage'); if(!st || st.textContent.includes('hit a problem')) broken.push(g.id); }
+    w.location.hash = '#games';
+    check('every game opens', broken.length === 0, broken.join(', '));
+  }catch(e){ check('test runner crashed', false, e.message); }
+  sum.textContent = `${passed} passed, ${failed} failed`;
+  sum.className = failed ? 'fail' : 'pass';
+});
+</script>
+</body>
+</html>
