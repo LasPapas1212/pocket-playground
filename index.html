@@ -728,21 +728,26 @@ function bestUpdate(prev, score, lower){
   return {isNew, best: isNew ? score : prev};
 }
 function bag(){
-  const offs = [], tids = new Set(); let alive = true;
+  const offs = [], tids = new Set(), retry = new Map(); let alive = true;
   return {
     on(t, type, fn, o){
-      const h = (t === window && type.startsWith('key')) ? (e => { if(!gamePaused) fn(e); }) : fn;
+      const h = (t === window && type === 'keydown') ? (e => { if(!gamePaused) fn(e); }) : fn; /* keyup still passes, so held keys never stick */
       t.addEventListener(type, h, o); offs.push(() => t.removeEventListener(type, h, o));
     },
     defer(fn){ offs.push(fn); },
-    after(fn, ms){ const id = setTimeout(() => { tids.delete(id); if(alive) fn(); }, ms); tids.add(id); return id; },
-    every(fn, ms){ const id = setInterval(() => { if(alive) fn(); }, ms); tids.add(id); return id; },
+    after(fn, ms){
+      /* while paused, the callback waits; it keeps the same id so cancel() still works */
+      const id = setTimeout(function tick(){ if(!alive || !tids.has(id)) return; if(gamePaused){ retry.set(id, setTimeout(tick, 100)); return; } tids.delete(id); retry.delete(id); fn(); }, ms);
+      tids.add(id); return id;
+    },
+    every(fn, ms){ const id = setInterval(() => { if(alive && !gamePaused) fn(); }, ms); tids.add(id); return id; },
+    cancel(id){ clearTimeout(id); clearInterval(id); tids.delete(id); if(retry.has(id)){ clearTimeout(retry.get(id)); retry.delete(id); } },
     loop(fn){
       let raf, last = performance.now();
       const f = t => { if(!alive) return; const dt = Math.min(0.05, Math.max(0, (t-last)/1000)); last = t; if(!gamePaused) fn(dt); if(alive) raf = requestAnimationFrame(f); };
       raf = requestAnimationFrame(f); offs.push(() => cancelAnimationFrame(raf));
     },
-    run(){ alive = false; tids.forEach(id => { clearTimeout(id); clearInterval(id); }); tids.clear(); offs.splice(0).forEach(f => { try{ f(); }catch(e){} }); }
+    run(){ alive = false; tids.forEach(id => { clearTimeout(id); clearInterval(id); }); tids.clear(); retry.forEach(id => clearTimeout(id)); retry.clear(); offs.splice(0).forEach(f => { try{ f(); }catch(e){} }); }
   };
 }
 
@@ -3905,7 +3910,7 @@ game({
     stats();
     const away = Math.min(8*3600, Math.max(0, (Date.now() - st.t)/1000));
     if(away > 60 && rate() > 0){ const earned = rate()*away*0.5; st.g += earned; st.total += earned; msg.textContent = `Welcome back! Your factory made ${fmtNum(earned)} gadgets while you were away.`; }
-    const save = () => { st.t = Date.now(); store.set('idle', st); };
+    const save = () => { st.t = Date.now(); store.set('idle', st); if(st.total >= 1e6) checkAch(); };
     function renderShop(){
       mEl.innerHTML = IDLE_MACHINES.map((m, i) => {
         const locked = i > 0 && !(st.own[IDLE_MACHINES[i - 1].id] > 0) && !(st.own[m.id] > 0);
@@ -4081,7 +4086,7 @@ game({
       moves++; flipTops(); render();
       if(S.found.every(f => f.length === 13)){ done = true; api.after(() => api.end(moves, `${Math.round((Date.now() - start)/1000)} seconds`), 400); }
     }
-    function fanStep(col){ const t = S.tab[col], avail = H - tabTop - ch - 50; let down = 0, up = 0; t.forEach((cd, i) => { if(i < t.length - 1){ if(cd.up) up++; else down++; } }); let du = 24, dd = 10; const need = up*du + down*dd; if(need > avail && need > 0){ const k = avail/need; du *= k; dd *= k; } return {du, dd}; }
+    function fanStep(col){ const t = S.tab[col], avail = H - tabTop - ch - 50; let down = 0, up = 0; t.forEach((cd, i) => { if(i < t.length - 1){ if(cd.up) up++; else down++; } }); let du = 24, dd = 10; const need = up*du + down*dd; if(need > avail && need > 0){ const k = Math.max(0.25, avail/need); du *= k; dd *= k; } return {du, dd}; }
     function pos(where, col, idx){
       if(where === 'stock') return {x:colX(0), y:top};
       if(where === 'waste'){ const n = S.waste.length, shown = draw === 3 ? Math.min(3, n) : 1, k = idx - (n - shown); return {x:colX(1) + Math.max(0, k)*(cw*0.28), y:top}; }
@@ -4204,7 +4209,7 @@ game({
     const at = (r, cc) => r >= 0 && r < N && cc >= 0 && cc < N ? B[r][cc] : null;
     function fresh(r, cc, fromRow){ let t; do{ t = rand(T); }while((at(r, cc - 1) && at(r, cc - 2) && at(r, cc - 1).t === t && at(r, cc - 2).t === t) || (at(r - 1, cc) && at(r - 2, cc) && at(r - 1, cc).t === t && at(r - 2, cc).t === t)); return {t, x:cc, y:fromRow, s:1}; }
     for(let r=0;r<N;r++){ B.push([]); for(let cc=0;cc<N;cc++) B[r].push(null); }
-    for(let r=0;r<N;r++) for(let cc=0;cc<N;cc++) B[r][cc] = fresh(r, cc, r - N);
+    do{ for(let r=0;r<N;r++) for(let cc=0;cc<N;cc++) B[r][cc] = null; for(let r=0;r<N;r++) for(let cc=0;cc<N;cc++) B[r][cc] = fresh(r, cc, r - N); }while(!hasMoves());
     function matches(){
       const m = new Set();
       for(let r=0;r<N;r++){ let run = 1; for(let cc=1;cc<=N;cc++){ if(cc < N && B[r][cc] && B[r][cc - 1] && B[r][cc].t === B[r][cc - 1].t) run++; else { if(run >= 3) for(let k=cc - run;k<cc;k++) m.add(r*N + k); run = 1; } } }
@@ -4347,6 +4352,7 @@ game({
       let o = null; for(const q of [A, Bp]) if(p.x >= q.x && p.x <= q.x + pw && p.y >= q.y && p.y <= q.y + ph) o = q;
       if(!o) return;
       const lx = p.x - o.x, ly = p.y - o.y;
+      if(diffs.some(d2 => d2.found && Math.hypot(d2.x - lx, d2.y - ly) <= d2.r)) return; /* already found: no penalty */
       const d = diffs.find(d2 => !d2.found && Math.hypot(d2.x - lx, d2.y - ly) <= d2.r);
       if(d){ d.found = true; found++; api.sfx.coin(); api.float(p.x, p.y - 20, `${found}/5`); if(found === 5){ done = true; const t = Math.round((performance.now() - start)/1000 + penalty); api.after(() => api.end(t, penalty ? `Includes ${penalty}s of penalties` : 'No wrong clicks!'), 500); } }
       else { penalty += 5; api.sfx.miss(); marks.push({x:p.x, y:p.y, t:0.6}); api.float(p.x, p.y - 20, '+5s', P.red); }
@@ -4537,6 +4543,7 @@ game({
     }
     function click(i){
       if(over || (bot && turn === 2)) return;
+      if(i === sel){ sel = -1; paint(); return; } /* click the selected piece again to deselect */
       const m = legal.filter(x => x.path[0] === sel && x.path[x.path.length - 1] === i);
       if(sel >= 0 && m.length){ doMove(m.sort((a, z) => z.caps.length - a.caps.length)[0]); return; }
       if(legal.some(x => x.path[0] === i)){ sel = i; api.sfx.click(); paint(); }
@@ -4752,7 +4759,7 @@ game({
   mount(el, api){
     el.classList.add('flush');
     const {c, ctx} = makeCanvas(el); const P = pal(); const fx = particles();
-    const COLS = 12, ROWS = 8, S = Math.floor(Math.min(c.W/COLS, (c.H - 58)/ROWS)), ox = Math.floor((c.W - COLS*S)/2), oy = c.H - ROWS*S - 4;
+    const COLS = 12, ROWS = 8, TOP = c.W < 560 ? 100 : 58, S = Math.floor(Math.min(c.W/COLS, (c.H - TOP)/ROWS)), ox = Math.floor((c.W - COLS*S)/2), oy = c.H - ROWS*S - 4;
     const WP = [[-1,1],[9,1],[9,4],[2,4],[2,6],[12,6]];
     const pathSet = new Set();
     for(let i=0;i<WP.length - 1;i++){ let [x, y] = WP[i]; const [x2, y2] = WP[i + 1]; for(;;){ if(x >= 0 && x < COLS) pathSet.add(y*COLS + x); if(x === x2 && y === y2) break; x += Math.sign(x2 - x); y += Math.sign(y2 - y); } }
@@ -5076,7 +5083,7 @@ game({
     const ghostY = () => { let y = cur.y; while(fits(cur.m, cur.x, y + 1)) y++; return y; };
     const touchLock = () => { if(lockT >= 0 && resets < 15){ lockT = 0.45; resets++; } };
     function move(dx){ if(over || !cur) return; if(fits(cur.m, cur.x + dx, cur.y)){ cur.x += dx; touchLock(); api.tone(500, 0.02, {type:'square', vol:0.02}); } }
-    function rotate(){ if(over || !cur) return; const m = rot(cur.m); for(const k of [0, -1, 1, -2, 2]) if(fits(m, cur.x + k, cur.y)){ cur.m = m; cur.x += k; touchLock(); api.tone(700, 0.03, {type:'triangle', vol:0.04}); return; } }
+    function rotate(){ if(over || !cur) return; const m = rot(cur.m); for(const [kx, ky] of [[0,0],[-1,0],[1,0],[-2,0],[2,0],[0,-1],[0,-2]]) if(fits(m, cur.x + kx, cur.y + ky)){ cur.m = m; cur.x += kx; cur.y += ky; touchLock(); api.tone(700, 0.03, {type:'triangle', vol:0.04}); return; } }
     function lock(){
       cur.m.forEach((row, r) => row.forEach((v, cc) => { if(v && cur.y + r >= 0) board[cur.y + r][cur.x + cc] = COLR[cur.k]; }));
       if(cur.m.some((row, r) => row.some(v => v) && cur.y + r < 0)){ over = true; api.sfx.lose(); api.end(score, `${lines} lines · level ${level}`); return; }
@@ -5167,7 +5174,7 @@ game({
     const nbrs = (r, cc) => r % 2 ? [[r, cc - 1], [r, cc + 1], [r - 1, cc], [r - 1, cc + 1], [r + 1, cc], [r + 1, cc + 1]] : [[r, cc - 1], [r, cc + 1], [r - 1, cc - 1], [r - 1, cc], [r + 1, cc - 1], [r + 1, cc]];
     function present(){ const s = new Set(); grid.forEach(row => row.forEach(v => { if(v !== null) s.add(v); })); return [...s]; }
     const pickColor = () => { const p = present(); return p.length ? p[rand(p.length)] : rand(nColors); };
-    function fill(){ grid = []; for(let r=0;r<6;r++){ ensure(r); for(let cc=0;cc<cols;cc++) grid[r][cc] = rand(nColors); } cur = pickColor(); nxt = pickColor(); }
+    function fill(){ grid = []; const rows0 = clamp(Math.floor((deadline - ceil)/RH) - 2, 2, 6); for(let r=0;r<rows0;r++){ ensure(r); for(let cc=0;cc<cols;cc++) grid[r][cc] = rand(nColors); } cur = pickColor(); nxt = pickColor(); }
     fill();
     function fire(){ if(ball || over) return; ball = {x:shooter.x, y:shooter.y, vx:Math.cos(angle)*950, vy:Math.sin(angle)*950, col:cur}; cur = nxt; nxt = pickColor(); api.tone(500, 0.05, {type:'triangle', vol:0.05}); }
     function swap(){ if(ball || over) return; [cur, nxt] = [nxt, cur]; api.sfx.click(); }
@@ -5268,6 +5275,7 @@ game({
     api.on(c, 'pointerdown', e => { const p = ptr(c, e); running = true; if(e.pointerType === 'mouse'){ aim = p; firing = true; } else { touchMode = true; drag = {sx:p.x, sy:p.y, x:p.x, y:p.y}; try{ c.setPointerCapture(e.pointerId); }catch(err){} } });
     const up = e => { if(e.pointerType === 'mouse') firing = false; else drag = null; };
     api.on(c, 'pointerup', up); api.on(c, 'pointercancel', up); api.on(window, 'blur', () => { firing = false; drag = null; });
+    api.on(window, 'pointerup', e => { if(e.pointerType === 'mouse') firing = false; }); /* released outside the canvas */
     api.on(window, 'keydown', () => { if(keys.l || keys.r || keys.u || keys.d) running = true; });
     api.loop(dt => {
       if(running && !over){
@@ -5457,7 +5465,7 @@ function mountGame(g){
     on: (t, type, fn, o) => b.on(t, type, fn, o),
     after: (fn, ms) => b.after(fn, ms),
     every: (fn, ms) => b.every(fn, ms),
-    cancel: id => { clearTimeout(id); clearInterval(id); },
+    cancel: id => b.cancel(id),
     loop: fn => b.loop(fn),
     beep, tone, sfx:SFX,
     float: (x, y, t, col) => floatText(stage, x, y, t, col),
@@ -5618,20 +5626,25 @@ function resetArea(state){
     $('#set-reset').addEventListener('click', () => resetArea('ask'));
   }
 }
-let lookAtOpen = '';
+let lookAtOpen = '', settingsOpen = false;
 function openSettings(){
   /* pause instead of stopping, so closing the menu doesn't wipe your run */
-  gamePaused = !!current; pausedGame = current ? current.g : null; lookAtOpen = prefs.theme + prefs.motion;
+  settingsOpen = true; gamePaused = !!current; pausedGame = current ? current.g : null; lookAtOpen = prefs.theme + prefs.motion;
   syncSettings(); resetArea();
   if(dlg.showModal) dlg.showModal(); else dlg.setAttribute('open', '');
 }
-dlg.addEventListener('close', () => {
-  renderSound(); gamePaused = false;
+function settingsClosed(){
+  if(!settingsOpen) return; /* runs once, whichever close signal arrives first */
+  settingsOpen = false; renderSound(); gamePaused = false;
   const g = pausedGame; pausedGame = null;
   /* canvas games read theme colors when they start, so restart them only if the look changed */
   if(g && current && current.g === g && lookAtOpen !== prefs.theme + prefs.motion && $('#stage canvas')) mountGame(g);
   else if($('#grid')) showHome();
-});
+}
+/* some browsers don't always fire "close", so also listen for the Close button (form submit) and Esc (cancel) */
+dlg.addEventListener('close', settingsClosed);
+dlg.addEventListener('cancel', () => setTimeout(settingsClosed, 0));
+$('form', dlg).addEventListener('submit', () => setTimeout(settingsClosed, 0));
 $('#settings-btn').addEventListener('click', openSettings);
 $('#set-sound').addEventListener('change', e => { prefs.muted = !e.target.checked; savePrefs(); renderSound(); });
 $('#set-volume').addEventListener('input', e => { prefs.volume = clamp(+e.target.value/100, 0, 1); $('#set-vol-out').textContent = e.target.value + '%'; savePrefs(); });
@@ -5670,6 +5683,7 @@ window.addEventListener('resize', () => {
   resizeT = setTimeout(() => {
     const st = $('#stage'), cv = st && st.querySelector('canvas.cv');
     if(!current || !cv) return;
+    if(st.contains(document.activeElement) && document.activeElement.tagName === 'INPUT') return; /* phone keyboard opening, not a real resize */
     if(Math.abs(st.clientWidth - cv.W) > 2 || Math.abs(st.clientHeight - cv.H) > 2) mountGame(current.g);
   }, 300);
 });
